@@ -17,12 +17,17 @@ class ProductsViewModel extends ChangeNotifier {
   String _selectedSupplier = 'All suppliers';
   String _selectedStatus = 'All status';
 
+  // Specific product row loading states for toggle
+  final Set<String> _updatingProductIds = {};
+
   // Getters
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
   String get selectedCategory => _selectedCategory;
   String get selectedSupplier => _selectedSupplier;
   String get selectedStatus => _selectedStatus;
+
+  bool isProductUpdating(String id) => _updatingProductIds.contains(id);
 
   int get totalProducts => _products.length;
   int get activeProducts => _products.where((p) => p.isActive).length;
@@ -43,20 +48,16 @@ class ProductsViewModel extends ChangeNotifier {
 
   List<ProductModel> get filteredProducts {
     return _products.where((product) {
-      // Search
       final matchesSearch = _searchQuery.isEmpty ||
           product.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           product.sku.toLowerCase().contains(_searchQuery.toLowerCase());
 
-      // Category
       final matchesCategory = _selectedCategory == 'All categories' ||
           product.category == _selectedCategory;
 
-      // Supplier
       final matchesSupplier = _selectedSupplier == 'All suppliers' ||
           product.supplier == _selectedSupplier;
 
-      // Status
       final matchesStatus = _selectedStatus == 'All status' ||
           (_selectedStatus == 'Active' && product.isActive) ||
           (_selectedStatus == 'Inactive' && !product.isActive);
@@ -101,16 +102,37 @@ class ProductsViewModel extends ChangeNotifier {
 
   Future<void> updateProduct(ProductModel product) async {
     await _repository.updateProduct(product);
-    await loadProducts();
+    final index = _products.indexWhere((p) => p.id == product.id);
+    if (index != -1) {
+      _products[index] = product;
+    }
+    notifyListeners();
   }
 
   Future<void> deleteProduct(String id) async {
     await _repository.deleteProduct(id);
-    await loadProducts();
+    _products.removeWhere((p) => p.id == id);
+    notifyListeners();
   }
 
+  // 5. Localized Product Status Toggle without full-page reloading
   Future<void> toggleProductStatus(ProductModel product) async {
-    final updated = product.copyWith(isActive: !product.isActive);
-    await updateProduct(updated);
+    _updatingProductIds.add(product.id);
+    notifyListeners();
+
+    try {
+      final updated = product.copyWith(isActive: !product.isActive);
+      await _repository.updateProduct(updated);
+
+      final index = _products.indexWhere((p) => p.id == product.id);
+      if (index != -1) {
+        _products[index] = updated;
+      }
+    } catch (e) {
+      debugPrint('Failed to toggle product status: $e');
+    } finally {
+      _updatingProductIds.remove(product.id);
+      notifyListeners();
+    }
   }
 }

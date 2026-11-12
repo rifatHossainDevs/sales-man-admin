@@ -222,6 +222,16 @@ class _RouteHistoryContentState extends State<_RouteHistoryContent> {
           Icons.route_rounded,
         ),
         _summaryCard(
+          'Total Orders',
+          '${model.totalOrdersOnDate}',
+          Icons.shopping_bag_outlined,
+        ),
+        _summaryCard(
+          'Total Collection',
+          '৳ ${model.totalCollectionOnDate.toStringAsFixed(0)}',
+          Icons.account_balance_wallet_outlined,
+        ),
+        _summaryCard(
           'Recorded points',
           '${points.length}',
           Icons.place_outlined,

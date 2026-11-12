@@ -237,6 +237,9 @@ class _RetailersViewContent extends StatelessWidget {
 
   Widget _buildRetailersTable(BuildContext context, RetailersViewModel viewModel) {
     final retailers = viewModel.filteredRetailers;
+    final totalCount = viewModel.allFilteredRetailers.length;
+    final totalPages = viewModel.totalPages;
+    final currentPage = viewModel.currentPage;
 
     return Container(
       decoration: BoxDecoration(
@@ -361,13 +364,70 @@ class _RetailersViewContent extends StatelessWidget {
                 child: Text('No retailers found matching the selected filters.', style: TextStyle(color: AppColors.textSecondary)),
               ),
             ),
+
+          const Divider(height: 1, color: AppColors.cardBorder),
+
+          // Pagination Bar (< 1 2 3 >)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Showing ${totalCount > 0 ? ((currentPage - 1) * viewModel.pageSize) + 1 : 0}–${(currentPage * viewModel.pageSize).clamp(0, totalCount)} of $totalCount retailers',
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded),
+                      onPressed: currentPage > 1
+                          ? () => viewModel.setCurrentPage(currentPage - 1)
+                          : null,
+                    ),
+                    for (int p = 1; p <= totalPages; p++)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: InkWell(
+                          onTap: () => viewModel.setCurrentPage(p),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: currentPage == p ? AppColors.primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '$p',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: currentPage == p ? FontWeight.bold : FontWeight.normal,
+                                color: currentPage == p ? Colors.white : AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right_rounded),
+                      onPressed: currentPage < totalPages
+                          ? () => viewModel.setCurrentPage(currentPage + 1)
+                          : null,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildMapView(BuildContext context, RetailersViewModel viewModel) {
-    final retailers = viewModel.filteredRetailers;
+    final retailers = viewModel.allFilteredRetailers;
 
     return Container(
       height: 540,
@@ -379,7 +439,6 @@ class _RetailersViewContent extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Background Map Grid Simulation
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -395,8 +454,6 @@ class _RetailersViewContent extends StatelessWidget {
               ],
             ),
           ),
-
-          // Render Store Location Badges
           Wrap(
             spacing: 12,
             runSpacing: 12,

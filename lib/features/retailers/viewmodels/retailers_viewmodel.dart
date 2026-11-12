@@ -21,12 +21,19 @@ class RetailersViewModel extends ChangeNotifier {
   String _selectedArea = 'All areas';
   bool _isMapView = false;
 
+  // Pagination (10 per page)
+  int _currentPage = 1;
+  final int _pageSize = 10;
+
   String get searchQuery => _searchQuery;
   String get selectedDivision => _selectedDivision;
   String get selectedDistrict => _selectedDistrict;
   String get selectedSubDistrict => _selectedSubDistrict;
   String get selectedArea => _selectedArea;
   bool get isMapView => _isMapView;
+
+  int get currentPage => _currentPage;
+  int get pageSize => _pageSize;
 
   final List<String> divisions = ['All divisions', 'Dhaka', 'Chattogram', 'Sylhet'];
   final List<String> districts = ['All districts', 'Dhaka', 'Gazipur', 'Narayanganj'];
@@ -55,7 +62,7 @@ class RetailersViewModel extends ChangeNotifier {
 
   int get totalRetailersCount => _allRetailers.length;
 
-  List<RetailerModel> get filteredRetailers {
+  List<RetailerModel> get allFilteredRetailers {
     return _allRetailers.where((r) {
       if (_selectedDivision != 'All divisions' && r.division != _selectedDivision) {
         return false;
@@ -85,28 +92,54 @@ class RetailersViewModel extends ChangeNotifier {
     }).toList();
   }
 
+  int get totalPages {
+    final count = allFilteredRetailers.length;
+    if (count == 0) return 1;
+    return (count / _pageSize).ceil();
+  }
+
+  List<RetailerModel> get filteredRetailers {
+    final list = allFilteredRetailers;
+    final startIndex = (_currentPage - 1) * _pageSize;
+    if (startIndex >= list.length) {
+      return list.skip(0).take(_pageSize).toList();
+    }
+    return list.skip(startIndex).take(_pageSize).toList();
+  }
+
+  void setCurrentPage(int page) {
+    if (page < 1 || page > totalPages) return;
+    _currentPage = page;
+    notifyListeners();
+  }
+
   void setSearchQuery(String query) {
     _searchQuery = query;
+    _currentPage = 1;
     notifyListeners();
   }
 
   void setSelectedDivision(String div) {
     _selectedDivision = div;
+    _currentPage = 1;
     notifyListeners();
   }
 
   void setSelectedDistrict(String dist) {
     _selectedDistrict = dist;
+    _currentPage = 1;
     notifyListeners();
   }
 
   void setSelectedSubDistrict(String subDist) {
     _selectedSubDistrict = subDist;
+    _currentPage = 1;
     notifyListeners();
   }
 
   void setSelectedArea(String area) {
     _selectedArea = area;
+    _currentPage = 1;
     notifyListeners();
   }
 

@@ -26,10 +26,7 @@ class TrackingMapMarker {
   });
 }
 
-/// Shared OpenStreetMap canvas used by live tracking and route history.
-/// The public OSM tile endpoint is configured for development/demo use; select
-/// a suitable hosted tile provider for production traffic and comply with its
-/// terms. Keep the visible OSM attribution when using OSM data/tiles.
+/// Shared OpenStreetMap canvas used by live tracking, route history, and order details.
 class TrackingMapView extends StatefulWidget {
   final MapController controller;
   final LatLng initialCenter;
@@ -216,12 +213,30 @@ class _TrackingMapViewState extends State<TrackingMapView> {
                         )
                         .toList(growable: false),
                   ),
-                const SimpleAttributionWidget(
-                  alignment: Alignment.bottomRight,
-                  source: Text('© OpenStreetMap contributors'),
-                ),
               ],
             ),
+
+            // Minimal, subtle OSM attribution
+            Positioned(
+              bottom: 6,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  '© OpenStreetMap',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: AppColors.textMuted,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+
             Positioned(
               top: 14,
               right: 14,

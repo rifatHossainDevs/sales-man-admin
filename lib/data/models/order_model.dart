@@ -25,6 +25,8 @@ class OrderModel {
   final String salesmanPhone;
   final String date;
   final String time;
+  /// Shipment timestamp supplied by the order data, when available.
+  final DateTime? shippedAt;
   final double totalAmount;
   final double paidAmount;
   final String paymentStatus; // 'Paid', 'Pending', 'Failed'
@@ -43,6 +45,7 @@ class OrderModel {
     required this.salesmanPhone,
     required this.date,
     required this.time,
+    this.shippedAt,
     required this.totalAmount,
     required this.paidAmount,
     required this.paymentStatus,
@@ -64,6 +67,7 @@ class OrderModel {
     String? salesmanPhone,
     String? date,
     String? time,
+    DateTime? shippedAt,
     double? totalAmount,
     double? paidAmount,
     String? paymentStatus,
@@ -82,6 +86,7 @@ class OrderModel {
       salesmanPhone: salesmanPhone ?? this.salesmanPhone,
       date: date ?? this.date,
       time: time ?? this.time,
+      shippedAt: shippedAt ?? this.shippedAt,
       totalAmount: totalAmount ?? this.totalAmount,
       paidAmount: paidAmount ?? this.paidAmount,
       paymentStatus: paymentStatus ?? this.paymentStatus,

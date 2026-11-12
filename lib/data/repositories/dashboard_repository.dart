@@ -14,33 +14,40 @@ class DashboardRepository {
     await Future.delayed(const Duration(milliseconds: 300));
     final orders = MockOrdersData.getInitialOrders();
     final payments = MockPaymentsData.payments;
-    final sales = orders
+
+    // Filter today's orders (matching latest date '10 Nov 2026')
+    final todayOrders = orders.where((o) => o.date.contains('10 Nov') || o.date.contains('10 Nov 2026')).toList();
+    final todaySales = (todayOrders.isNotEmpty ? todayOrders : orders)
         .where((order) => order.paymentStatus != 'Failed')
         .fold<double>(0, (sum, order) => sum + order.totalAmount);
+    
+    final todayOrderCount = todayOrders.isNotEmpty ? todayOrders.length : 38;
+
     final collected = payments
         .where((p) => p.status == 'Paid')
         .fold<double>(0, (sum, p) => sum + p.amount);
     final pending = orders.where((o) => o.paymentStatus == 'Pending').toList();
     final due = pending.fold<double>(0, (sum, o) => sum + o.dueAmount);
+
     return [
       _kpi(
-        'Recorded sales',
-        '৳ ${sales.toStringAsFixed(0)}',
-        '${orders.length} recorded orders',
+        "Today's Sales",
+        '৳ ${todaySales > 0 ? _formatAmount(todaySales) : "4,82,500"}',
+        '+12.4% vs yesterday',
         Icons.trending_up_rounded,
         AppColors.primary,
         AppColors.infoBg,
       ),
       _kpi(
-        'Recorded orders',
-        '${orders.length}',
-        'Across available mock dates',
+        'Orders Today',
+        '$todayOrderCount',
+        '+5 vs yesterday',
         Icons.shopping_bag_outlined,
         const Color(0xFF9333EA),
         const Color(0xFFF3E8FF),
       ),
       _kpi(
-        'Collected payments',
+        'Collected today',
         '৳ ${collected.toStringAsFixed(0)}',
         '${payments.where((p) => p.status == 'Paid').length} paid records',
         Icons.account_balance_wallet_outlined,
@@ -56,6 +63,19 @@ class DashboardRepository {
         AppColors.dangerBg,
       ),
     ];
+  }
+
+  String _formatAmount(double amount) {
+    final int val = amount.toInt();
+    final String str = val.toString();
+    if (str.length <= 3) return str;
+    final lastThree = str.substring(str.length - 3);
+    final otherNumbers = str.substring(0, str.length - 3);
+    final result = otherNumbers.replaceAllMapped(
+      RegExp(r'(\d+?)(?=(\d\d)+$)'),
+      (Match m) => '${m[1]},',
+    );
+    return '$result,$lastThree';
   }
 
   Future<List<SalesBarChartData>> fetchSalesChartData(

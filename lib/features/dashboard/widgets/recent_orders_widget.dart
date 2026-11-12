@@ -15,7 +15,7 @@ class RecentOrdersWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
@@ -61,73 +61,77 @@ class RecentOrdersWidget extends StatelessWidget {
 
           const SizedBox(height: 16),
 
-          // Data Table
+          // Data Table with responsive minWidth to prevent status clipping on 19-inch monitors
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 24,
-              horizontalMargin: 0,
-              headingRowHeight: 40,
-              dataRowMinHeight: 48,
-              dataRowMaxHeight: 48,
-              headingRowColor: WidgetStateProperty.all(AppColors.background),
-              columns: const [
-                DataColumn(
-                  label: Text('INVOICE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
-                ),
-                DataColumn(
-                  label: Text('RETAILER', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
-                ),
-                DataColumn(
-                  label: Text('SALESMAN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
-                ),
-                DataColumn(
-                  numeric: true,
-                  label: Text('TOTAL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
-                ),
-                DataColumn(
-                  label: Text('PAYMENT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
-                ),
-                DataColumn(
-                  label: Text('SHIPMENT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
-                ),
-              ],
-              rows: orders.map((order) {
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Text(
-                        order.invoiceNo,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+            child: ConstrainedBox(
+              // Give every column room for its longest labels and status badges.
+              constraints: const BoxConstraints(minWidth: 900),
+              child: DataTable(
+                columnSpacing: 16,
+                horizontalMargin: 8,
+                headingRowHeight: 40,
+                dataRowMinHeight: 48,
+                dataRowMaxHeight: 48,
+                headingRowColor: WidgetStateProperty.all(AppColors.background),
+                columns: const [
+                  DataColumn(
+                    label: Text('INVOICE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                  ),
+                  DataColumn(
+                    label: Text('RETAILER', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                  ),
+                  DataColumn(
+                    label: Text('SALESMAN', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                  ),
+                  DataColumn(
+                    numeric: true,
+                    label: Text('TOTAL', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                  ),
+                  DataColumn(
+                    label: Text('PAYMENT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                  ),
+                  DataColumn(
+                    label: Text('SHIPMENT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary)),
+                  ),
+                ],
+                rows: orders.map((order) {
+                  return DataRow(
+                    cells: [
+                      DataCell(
+                        Text(
+                          order.invoiceNo,
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                        ),
                       ),
-                    ),
-                    DataCell(
-                      Text(
-                        order.retailerName,
-                        style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                      DataCell(
+                        Text(
+                          order.retailerName,
+                          style: const TextStyle(fontSize: 12.5, color: AppColors.textPrimary),
+                        ),
                       ),
-                    ),
-                    DataCell(
-                      Text(
-                        order.salesmanName,
-                        style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                      DataCell(
+                        Text(
+                          order.salesmanName,
+                          style: const TextStyle(fontSize: 12.5, color: AppColors.textPrimary),
+                        ),
                       ),
-                    ),
-                    DataCell(
-                      Text(
-                        '৳ ${_formatAmount(order.totalAmount)}',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                      DataCell(
+                        Text(
+                          '৳ ${_formatAmount(order.totalAmount)}',
+                          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                        ),
                       ),
-                    ),
-                    DataCell(
-                      StatusBadge(status: order.paymentStatus),
-                    ),
-                    DataCell(
-                      StatusBadge(status: order.shipmentStatus),
-                    ),
-                  ],
-                );
-              }).toList(),
+                      DataCell(
+                        StatusBadge(status: order.paymentStatus),
+                      ),
+                      DataCell(
+                        StatusBadge(status: order.shipmentStatus),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
           ),
         ],
@@ -140,7 +144,6 @@ class RecentOrdersWidget extends StatelessWidget {
     final String str = val.toString();
     if (str.length <= 3) return str;
     
-    // Format according to Bangladeshi Taka numbering (e.g., 42,250)
     final lastThree = str.substring(str.length - 3);
     final otherNumbers = str.substring(0, str.length - 3);
     final result = otherNumbers.replaceAllMapped(

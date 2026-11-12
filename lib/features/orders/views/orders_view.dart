@@ -58,7 +58,7 @@ class _OrdersViewContent extends StatelessWidget {
                               _buildHeaderFilters(context, viewModel),
                               const SizedBox(height: 20),
 
-                              // Orders Table
+                              // Orders Table with Pagination
                               _buildOrdersTable(context, viewModel),
                             ],
                           ),
@@ -93,13 +93,15 @@ class _OrdersViewContent extends StatelessWidget {
           ],
         ),
 
-        // Search & Salesman Dropdown
+        // Search, Salesman Dropdown, Date Filter, and Export Button
         Wrap(
           spacing: 12,
           runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
+            // Search Box
             SizedBox(
-              width: isMobile ? double.infinity : 220,
+              width: isMobile ? double.infinity : 200,
               height: 40,
               child: TextField(
                 onChanged: viewModel.setSearchQuery,
@@ -112,15 +114,86 @@ class _OrdersViewContent extends StatelessWidget {
                 ),
               ),
             ),
-            DropdownButton<String>(
-              value: viewModel.selectedSalesman,
-              underline: const SizedBox.shrink(),
-              items: viewModel.salesmenOptions
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                  .toList(),
-              onChanged: (val) {
-                if (val != null) viewModel.setSelectedSalesman(val);
+
+            // 5.2 Styled Salesman Filter Dropdown
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.cardBorder),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: viewModel.selectedSalesman,
+                  items: viewModel.salesmenOptions
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 13))))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) viewModel.setSelectedSalesman(val);
+                  },
+                ),
+              ),
+            ),
+
+            // 5.1 Date Filter Button
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                backgroundColor: AppColors.surface,
+                side: BorderSide(
+                  color: viewModel.selectedDate != null ? AppColors.primary : AppColors.cardBorder,
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: Icon(
+                Icons.calendar_today_rounded,
+                size: 16,
+                color: viewModel.selectedDate != null ? AppColors.primary : AppColors.textSecondary,
+              ),
+              label: Text(
+                viewModel.selectedDate == null
+                    ? 'Date'
+                    : '${viewModel.selectedDate!.day}/${viewModel.selectedDate!.month}/${viewModel.selectedDate!.year}',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: viewModel.selectedDate != null ? AppColors.primary : AppColors.textPrimary,
+                  fontWeight: viewModel.selectedDate != null ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+              onPressed: () async {
+                final date = await showDatePicker(
+                  context: context,
+                  initialDate: viewModel.selectedDate ?? DateTime.now(),
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now(),
+                );
+                viewModel.setSelectedDate(date);
               },
+            ),
+
+            if (viewModel.selectedDate != null)
+              IconButton(
+                tooltip: 'Clear Date Filter',
+                icon: const Icon(Icons.close_rounded, size: 18, color: AppColors.danger),
+                onPressed: () => viewModel.setSelectedDate(null),
+              ),
+
+            // 5.3 Export Button (.xlsx / .csv)
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.surface,
+                foregroundColor: AppColors.primary,
+                elevation: 0,
+                side: const BorderSide(color: AppColors.primary),
+                minimumSize: const Size(0, 40),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: const Icon(Icons.download_rounded, size: 18),
+              label: const Text('Export .xlsx', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+              onPressed: viewModel.exportOrdersCsv,
             ),
           ],
         ),
@@ -147,6 +220,9 @@ class _OrdersViewContent extends StatelessWidget {
 
   Widget _buildOrdersTable(BuildContext context, OrdersViewModel viewModel) {
     final orders = viewModel.filteredOrders;
+    final totalCount = viewModel.allFilteredOrders.length;
+    final totalPages = viewModel.totalPages;
+    final currentPage = viewModel.currentPage;
 
     return Container(
       decoration: BoxDecoration(
@@ -199,6 +275,7 @@ class _OrdersViewContent extends StatelessWidget {
               }).toList(),
             ),
           ),
+
           if (orders.isEmpty)
             const Padding(
               padding: EdgeInsets.all(32),
@@ -206,6 +283,68 @@ class _OrdersViewContent extends StatelessWidget {
                 child: Text('No orders found matching the criteria.', style: TextStyle(color: AppColors.textSecondary)),
               ),
             ),
+
+          const Divider(height: 1, color: AppColors.cardBorder),
+
+          // 5.4 Pagination Bar (< 1 2 3 >)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Showing ${totalCount > 0 ? ((currentPage - 1) * viewModel.pageSize) + 1 : 0}–${(currentPage * viewModel.pageSize).clamp(0, totalCount)} of $totalCount orders',
+                  style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                ),
+                Row(
+                  children: [
+                    // Previous Page Button
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left_rounded),
+                      onPressed: currentPage > 1
+                          ? () => viewModel.setCurrentPage(currentPage - 1)
+                          : null,
+                    ),
+
+                    // Page Number Buttons
+                    for (int p = 1; p <= totalPages; p++)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: InkWell(
+                          onTap: () => viewModel.setCurrentPage(p),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            width: 32,
+                            height: 32,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: currentPage == p ? AppColors.primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '$p',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: currentPage == p ? FontWeight.bold : FontWeight.normal,
+                                color: currentPage == p ? Colors.white : AppColors.textPrimary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    // Next Page Button
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right_rounded),
+                      onPressed: currentPage < totalPages
+                          ? () => viewModel.setCurrentPage(currentPage + 1)
+                          : null,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

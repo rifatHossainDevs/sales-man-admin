@@ -1,3 +1,4 @@
+import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -8,10 +9,13 @@ import '../../../core/utils/responsive_layout.dart';
 import '../../../core/widgets/app_sidebar.dart';
 import '../../../core/widgets/app_topbar.dart';
 import '../../../core/widgets/tracking_map_view.dart';
+import '../../../data/mock/mock_salesmen_data.dart';
 import '../../../data/models/salesman_gps_location.dart';
+import '../../../data/models/salesman_model.dart';
 import '../../../data/services/location_tracking_service.dart';
 import '../../../routing/app_router.dart';
 import '../viewmodels/live_tracking_viewmodel.dart';
+import '../viewmodels/route_history_viewmodel.dart';
 
 class LiveTrackingView extends StatelessWidget {
   final LocationTrackingService? locationService;
@@ -206,69 +210,142 @@ class _LiveTrackingContentState extends State<_LiveTrackingContent> {
   Widget _selectedDetails(BuildContext context, SalesmanGpsLocation? location) {
     if (location == null) return const SizedBox.shrink();
     final updated = _relativeTime(location.updatedAt);
+
+    final salesmanModel = MockSalesmenData.salesmen.firstWhere(
+      (s) => s.id == location.salesmanId || s.name == location.name,
+      orElse: () => SalesmanModel(
+        id: location.salesmanId,
+        name: location.name,
+        email: 'salesman@dealer.com',
+        phone: '+8801711223344',
+        nid: '199226928001',
+        totalOrders: 18,
+        totalCollected: 142000,
+        lastSeen: 'Now',
+        isOnline: location.isOnline,
+        status: 'Active',
+        assignedTerritory: location.territory,
+        avatarInitials: location.initials,
+      ),
+    );
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.cardBorder),
       ),
-      child: Wrap(
-        spacing: 18,
-        runSpacing: 12,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
               CircleAvatar(
-                radius: 18,
+                radius: 20,
                 backgroundColor: location.isOnline
                     ? AppColors.successBg
                     : AppColors.infoBg,
                 child: Text(
                   location.initials,
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.bold,
                     color: AppColors.textPrimary,
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    location.name,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      location.name,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  Text(
-                    location.territory,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
+                    Text(
+                      '${location.territory} · ${salesmanModel.phone}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const SizedBox(width: 8),
               _statusTag(location.isOnline),
             ],
           ),
-          _detailItem(Icons.place_outlined, location.placeName),
-          _detailItem(
-            Icons.my_location_outlined,
-            '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}',
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: AppColors.cardBorder),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 20,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _detailItem(Icons.place_outlined, location.placeName),
+              _detailItem(
+                Icons.my_location_outlined,
+                '${location.latitude.toStringAsFixed(5)}, ${location.longitude.toStringAsFixed(5)}',
+              ),
+              _detailItem(Icons.shopping_bag_outlined, 'Total Orders: ${salesmanModel.totalOrders}'),
+              _detailItem(Icons.schedule_rounded, 'Updated $updated'),
+            ],
           ),
-          _detailItem(Icons.schedule_rounded, 'Updated $updated'),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 38),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                icon: const Icon(Icons.chat_bubble_outline_rounded, size: 16),
+                label: const Text('WhatsApp'),
+                onPressed: () {
+                  final phoneClean = salesmanModel.phone.replaceAll(RegExp(r'[^\d+]'), '');
+                  final waUrl = 'https://wa.me/${phoneClean.replaceAll('+', '')}?text=${Uri.encodeComponent('Hello ${salesmanModel.name}, regarding your field orders...')}';
+                  _openUrl(waUrl);
+                },
+              ),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 38),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                icon: const Icon(Icons.route_rounded, size: 16),
+                label: const Text('View Route'),
+                onPressed: () {
+                  try {
+                    context.read<RouteHistoryViewModel>().selectSalesman(salesmanModel.id);
+                  } catch (_) {}
+                  Navigator.of(context).pushReplacementNamed(AppRouter.routeHistory);
+                },
+              ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  void _openUrl(String url) {
+    try {
+      web.window.open(url, '_blank');
+    } catch (_) {}
   }
 
   Widget _salesmanPanel(

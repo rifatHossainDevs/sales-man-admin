@@ -29,8 +29,15 @@ class PaymentsViewModel extends ChangeNotifier {
   String _searchQuery = '';
   String _selectedStatus = 'All status';
 
+  // Pagination (10 per page)
+  int _currentPage = 1;
+  final int _pageSize = 10;
+
   String get searchQuery => _searchQuery;
   String get selectedStatus => _selectedStatus;
+
+  int get currentPage => _currentPage;
+  int get pageSize => _pageSize;
 
   final List<String> statusOptions = [
     'All status',
@@ -83,7 +90,7 @@ class PaymentsViewModel extends ChangeNotifier {
       ..sort((a, b) => b.amount.compareTo(a.amount));
   }
 
-  List<PaymentModel> get filteredPayments {
+  List<PaymentModel> get allFilteredPayments {
     return _allPayments.where((p) {
       if (_selectedStatus != 'All status' && p.status != _selectedStatus) {
         return false;
@@ -104,13 +111,36 @@ class PaymentsViewModel extends ChangeNotifier {
     }).toList();
   }
 
+  int get totalPages {
+    final count = allFilteredPayments.length;
+    if (count == 0) return 1;
+    return (count / _pageSize).ceil();
+  }
+
+  List<PaymentModel> get filteredPayments {
+    final list = allFilteredPayments;
+    final startIndex = (_currentPage - 1) * _pageSize;
+    if (startIndex >= list.length) {
+      return list.skip(0).take(_pageSize).toList();
+    }
+    return list.skip(startIndex).take(_pageSize).toList();
+  }
+
+  void setCurrentPage(int page) {
+    if (page < 1 || page > totalPages) return;
+    _currentPage = page;
+    notifyListeners();
+  }
+
   void setSearchQuery(String query) {
     _searchQuery = query;
+    _currentPage = 1;
     notifyListeners();
   }
 
   void setSelectedStatus(String status) {
     _selectedStatus = status;
+    _currentPage = 1;
     notifyListeners();
   }
 

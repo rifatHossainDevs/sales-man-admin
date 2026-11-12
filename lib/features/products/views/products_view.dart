@@ -91,12 +91,12 @@ class _ProductsViewContent extends StatelessWidget {
           runSpacing: 12,
           children: [
             SizedBox(
-              width: isMobile ? double.infinity : 260,
+              width: isMobile ? double.infinity : 240,
               height: 40,
               child: TextField(
                 onChanged: viewModel.setSearchQuery,
                 decoration: InputDecoration(
-                  hintText: 'Search by name or SKU…',
+                  hintText: 'Search name or SKU…',
                   prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.textMuted),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                   filled: true,
@@ -104,35 +104,40 @@ class _ProductsViewContent extends StatelessWidget {
                 ),
               ),
             ),
-            DropdownButton<String>(
-              value: viewModel.selectedCategory,
-              underline: const SizedBox.shrink(),
-              items: viewModel.categories
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
-              onChanged: (val) {
-                if (val != null) viewModel.setSelectedCategory(val);
-              },
+
+            // Filter Dropdowns with proper container styling
+            _styledDropdownContainer(
+              DropdownButton<String>(
+                value: viewModel.selectedCategory,
+                items: viewModel.categories
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c, style: const TextStyle(fontSize: 13))))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) viewModel.setSelectedCategory(val);
+                },
+              ),
             ),
-            DropdownButton<String>(
-              value: viewModel.selectedSupplier,
-              underline: const SizedBox.shrink(),
-              items: viewModel.suppliers
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                  .toList(),
-              onChanged: (val) {
-                if (val != null) viewModel.setSelectedSupplier(val);
-              },
+            _styledDropdownContainer(
+              DropdownButton<String>(
+                value: viewModel.selectedSupplier,
+                items: viewModel.suppliers
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 13))))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) viewModel.setSelectedSupplier(val);
+                },
+              ),
             ),
-            DropdownButton<String>(
-              value: viewModel.selectedStatus,
-              underline: const SizedBox.shrink(),
-              items: ['All status', 'Active', 'Inactive']
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                  .toList(),
-              onChanged: (val) {
-                if (val != null) viewModel.setSelectedStatus(val);
-              },
+            _styledDropdownContainer(
+              DropdownButton<String>(
+                value: viewModel.selectedStatus,
+                items: ['All status', 'Active', 'Inactive']
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 13))))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) viewModel.setSelectedStatus(val);
+                },
+              ),
             ),
           ],
         ),
@@ -142,6 +147,7 @@ class _ProductsViewContent extends StatelessWidget {
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: AppColors.surface,
+            minimumSize: const Size(0, 40),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
@@ -161,6 +167,19 @@ class _ProductsViewContent extends StatelessWidget {
           },
         ),
       ],
+    );
+  }
+
+  Widget _styledDropdownContainer(Widget child) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: DropdownButtonHideUnderline(child: child),
     );
   }
 
@@ -237,6 +256,8 @@ class _ProductsViewContent extends StatelessWidget {
                 DataColumn(label: Text('ACTIONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textSecondary))),
               ],
               rows: products.map((p) {
+                final isUpdating = viewModel.isProductUpdating(p.id);
+
                 return DataRow(
                   cells: [
                     DataCell(
@@ -274,9 +295,39 @@ class _ProductsViewContent extends StatelessWidget {
                       ),
                     ),
                     DataCell(Text(p.unit, style: const TextStyle(fontSize: 12.5))),
+
+                    // 5. Localized Product Status Toggle with inline loader (no full page reload)
                     DataCell(
-                      StatusBadge(status: p.isActive ? 'Active' : 'Inactive'),
+                      Row(
+                        children: [
+                          if (isUpdating)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 10),
+                              child: SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                              ),
+                            )
+                          else
+                            Switch(
+                              value: p.isActive,
+                              activeThumbColor: AppColors.primary,
+                              onChanged: (_) => viewModel.toggleProductStatus(p),
+                            ),
+                          const SizedBox(width: 4),
+                          Text(
+                            p.isActive ? 'Active' : 'Inactive',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: p.isActive ? AppColors.success : AppColors.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+
                     DataCell(
                       Row(
                         mainAxisSize: MainAxisSize.min,
@@ -333,7 +384,10 @@ class _ProductsViewContent extends StatelessWidget {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.danger),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.danger,
+              minimumSize: const Size(0, 36),
+            ),
             onPressed: () {
               viewModel.deleteProduct(product.id);
               Navigator.of(ctx).pop();

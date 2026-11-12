@@ -7,6 +7,7 @@ class SalesChartWidget extends StatelessWidget {
   final List<SalesBarChartData> data;
   final SalesChartPeriod selectedPeriod;
   final ValueChanged<SalesChartPeriod> onPeriodChanged;
+
   const SalesChartWidget({
     super.key,
     required this.data,
@@ -28,6 +29,7 @@ class SalesChartWidget extends StatelessWidget {
       SalesChartPeriod.thirtyDays => '30 days',
       SalesChartPeriod.ninetyDays => '90 days',
     };
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -128,20 +130,27 @@ class SalesChartWidget extends StatelessWidget {
                     bottomTitles: AxisTitles(
                       sideTitles: SideTitles(
                         showTitles: true,
-                        reservedSize: 25,
-                        interval: data.length > 14
-                            ? (data.length / 7).ceilToDouble()
-                            : 1,
-                        getTitlesWidget: (v, _) {
+                        reservedSize: 26,
+                        interval: 1,
+                        getTitlesWidget: (v, meta) {
                           final i = v.toInt();
                           if (i < 0 || i >= data.length) {
                             return const SizedBox.shrink();
                           }
-                          return Text(
-                            data[i].dayLabel,
-                            style: const TextStyle(
-                              fontSize: 9,
-                              color: AppColors.textSecondary,
+                          final step = data.length > 30 ? 15 : (data.length > 7 ? 5 : 1);
+                          if (i % step != 0 && i != data.length - 1) {
+                            return const SizedBox.shrink();
+                          }
+                          return SideTitleWidget(
+                            meta: meta,
+                            space: 4,
+                            child: Text(
+                              data[i].dayLabel,
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           );
                         },
@@ -167,8 +176,8 @@ class SalesChartWidget extends StatelessWidget {
                             width: data.length <= 7
                                 ? 24
                                 : data.length <= 30
-                                ? 8
-                                : 3,
+                                ? 6
+                                : 2.5,
                             borderRadius: const BorderRadius.only(
                               topLeft: Radius.circular(4),
                               topRight: Radius.circular(4),
@@ -190,7 +199,7 @@ class SalesChartWidget extends StatelessWidget {
     return InkWell(
       onTap: () => onPeriodChanged(period),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: active ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(6),

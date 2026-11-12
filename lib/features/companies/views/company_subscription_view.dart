@@ -1,3 +1,4 @@
+import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
@@ -28,6 +29,13 @@ class CompanySubscriptionView extends StatelessWidget {
 
 class _CompanySubscriptionViewContent extends StatelessWidget {
   const _CompanySubscriptionViewContent();
+
+  void _openWhatsAppRenewal() {
+    try {
+      const waUrl = 'https://wa.me/8801750057251?text=Hello%2C%20I%20would%20like%20to%20renew%20our%20dealership%20subscription%20plan.';
+      web.window.open(waUrl, '_blank');
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +113,7 @@ class _CompanySubscriptionViewContent extends StatelessWidget {
     );
   }
 
+  // 9.1 Company Information with Company ID
   Widget _buildCompanyProfileCard(CompanyManagementViewModel companyVm) {
     final company = companyVm.companies.isNotEmpty
         ? companyVm.companies.first
@@ -139,7 +148,9 @@ class _CompanySubscriptionViewContent extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(company.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      Text('ID: ${company.id}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      const SizedBox(height: 2),
+                      // 9.1 Company ID readable text
+                      Text('Company ID: ${company.id}', style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: AppColors.primary)),
                     ],
                   ),
                 ],
@@ -148,6 +159,8 @@ class _CompanySubscriptionViewContent extends StatelessWidget {
             ],
           ),
           const Divider(height: 28, color: AppColors.cardBorder),
+          _infoRow(Icons.fingerprint_rounded, 'Company ID', company.id),
+          const SizedBox(height: 10),
           _infoRow(Icons.email_outlined, 'Email', company.email),
           const SizedBox(height: 10),
           _infoRow(Icons.phone_outlined, 'Phone', company.phone),
@@ -164,7 +177,7 @@ class _CompanySubscriptionViewContent extends StatelessWidget {
         Icon(icon, size: 16, color: AppColors.textSecondary),
         const SizedBox(width: 10),
         SizedBox(
-          width: 70,
+          width: 90,
           child: Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
         ),
         Expanded(
@@ -174,6 +187,7 @@ class _CompanySubscriptionViewContent extends StatelessWidget {
     );
   }
 
+  // 9.2 Renew Plan Button
   Widget _buildCurrentPlanCard(CompanyManagementViewModel companyVm) {
     final company = companyVm.companies.isNotEmpty ? companyVm.companies.first : MockPhase5Data.companies.first;
 
@@ -211,6 +225,23 @@ class _CompanySubscriptionViewContent extends StatelessWidget {
           _usageBar('Sales Representatives', company.salesRepresentatives, null),
           const SizedBox(height: 8),
           _usageBar('Customers / Retailers', company.customers, null),
+          const SizedBox(height: 20),
+
+          // 9.2 Renew Plan Button via WhatsApp (01750057251)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+              label: const Text('Renew Plan', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              onPressed: _openWhatsAppRenewal,
+            ),
+          ),
         ],
       ),
     );

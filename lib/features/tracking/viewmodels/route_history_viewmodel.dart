@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../data/mock/mock_gps_data.dart';
+import '../../../data/mock/mock_orders_data.dart';
+import '../../../data/mock/mock_payments_data.dart';
 import '../../../data/models/route_history_point.dart';
 import '../../../data/models/salesman_model.dart';
 import '../../../data/repositories/salesmen_repository.dart';
@@ -55,6 +57,36 @@ class RouteHistoryViewModel extends ChangeNotifier {
   Duration? get routeDuration {
     if (_points.length < 2) return null;
     return _points.last.recordedAt.difference(_points.first.recordedAt);
+  }
+
+  // Dynamic Route History Stats for selected salesman and date
+  int get totalOrdersOnDate {
+    final salesman = selectedSalesman;
+    if (salesman == null) return 0;
+    final orders = MockOrdersData.getInitialOrders();
+    return orders.where((order) {
+      final nameMatches = order.salesmanName == salesman.name;
+      final dateMatches = _matchDate(order.date, _selectedDate);
+      return nameMatches && dateMatches;
+    }).length;
+  }
+
+  double get totalCollectionOnDate {
+    final salesman = selectedSalesman;
+    if (salesman == null) return 0.0;
+    final payments = MockPaymentsData.payments;
+    return payments.where((p) {
+      final nameMatches = p.salesmanName == salesman.name && p.status == 'Paid';
+      final dateMatches = _matchDate(p.paidAt, _selectedDate);
+      return nameMatches && dateMatches;
+    }).fold<double>(0.0, (sum, p) => sum + p.amount);
+  }
+
+  bool _matchDate(String dateStr, DateTime targetDate) {
+    // If order/payment date matches selected date month & day, or fallback to matching sample date
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final targetMonth = months[targetDate.month - 1];
+    return dateStr.contains(targetMonth) || dateStr.contains('${targetDate.day}');
   }
 
   Future<void> load() async {

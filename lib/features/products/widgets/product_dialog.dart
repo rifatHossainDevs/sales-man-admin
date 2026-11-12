@@ -38,6 +38,9 @@ class _ProductDialogState extends State<ProductDialog> {
   late String _selectedSupplier;
   late bool _isActive;
 
+  // Image Uploads (up to 3)
+  final List<String> _uploadedImages = ['Image_1.png'];
+
   @override
   void initState() {
     super.initState();
@@ -83,6 +86,17 @@ class _ProductDialogState extends State<ProductDialog> {
         : null;
     final stock = int.tryParse(_stockController.text) ?? 0;
 
+    // Validate offer price rule
+    if (offerPrice != null && offerPrice >= price) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Offer price must be lower than the regular price.'),
+          backgroundColor: AppColors.danger,
+        ),
+      );
+      return;
+    }
+
     final productModel = ProductModel(
       id: widget.product?.id ?? 'prd_${DateTime.now().millisecondsSinceEpoch}',
       name: _nameController.text.trim(),
@@ -109,7 +123,7 @@ class _ProductDialogState extends State<ProductDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600, maxHeight: 750),
+        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 820),
         child: Padding(
           padding: const EdgeInsets.all(28),
           child: Column(
@@ -139,6 +153,133 @@ class _ProductDialogState extends State<ProductDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Product Information Warning Card
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF6FF),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFBFDBFE)),
+                          ),
+                          child: const Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.info_outline_rounded, color: AppColors.primary, size: 20),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Product Guidelines & System Rules',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      '• SKU must be unique across all products.\n'
+                                      '• Offer price must be lower than the regular price.\n'
+                                      '• The first uploaded image will be used as the cover image.',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary,
+                                        height: 1.4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Image Upload Section
+                        const Text('Product Images (Up to 3)', style: AppTypography.labelBold),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            // Uploaded previews
+                            for (int i = 0; i < _uploadedImages.length; i++)
+                              Stack(
+                                children: [
+                                  Container(
+                                    width: 80,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.background,
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: AppColors.cardBorder),
+                                    ),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(Icons.inventory_2_outlined, color: AppColors.primary, size: 28),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          i == 0 ? 'Cover' : 'Img #${i + 1}',
+                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 2,
+                                    right: 2,
+                                    child: InkWell(
+                                      onTap: () {
+                                        setState(() {
+                                          _uploadedImages.removeAt(i);
+                                        });
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: const BoxDecoration(
+                                          color: AppColors.danger,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.close, size: 12, color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                            // Add image button if < 3
+                            if (_uploadedImages.length < 3)
+                              InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _uploadedImages.add('Image_${_uploadedImages.length + 1}.png');
+                                  });
+                                },
+                                child: Container(
+                                  width: 80,
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.background,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: AppColors.primary, style: BorderStyle.solid),
+                                  ),
+                                  child: const Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.add_a_photo_outlined, color: AppColors.primary, size: 22),
+                                      SizedBox(height: 4),
+                                      Text('Upload', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
                         CustomTextField(
                           label: 'Product Name',
                           hintText: 'e.g. Basmati Rice 5kg',
@@ -159,7 +300,7 @@ class _ProductDialogState extends State<ProductDialog> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: CustomTextField(
-                                label: 'SKU',
+                                label: 'SKU (Unique)',
                                 hintText: 'e.g. RIC-5K-002',
                                 controller: _skuController,
                                 validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
@@ -244,7 +385,7 @@ class _ProductDialogState extends State<ProductDialog> {
                             Expanded(
                               child: CustomTextField(
                                 label: 'Offer Price (৳)',
-                                hintText: '720 (optional)',
+                                hintText: '720 (Must be lower than price)',
                                 isRequired: false,
                                 controller: _offerPriceController,
                                 keyboardType: TextInputType.number,

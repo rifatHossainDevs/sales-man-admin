@@ -59,7 +59,7 @@ class LoginBrandingPanel extends StatelessWidget {
           RichText(
             text: const TextSpan(
               style: TextStyle(
-                fontSize: 38,
+                fontSize: 40,
                 fontWeight: FontWeight.bold,
                 height: 1.2,
                 fontFamily: 'Inter',
