@@ -65,8 +65,7 @@ class RecentOrdersWidget extends StatelessWidget {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: ConstrainedBox(
-              // Give every column room for its longest labels and status badges.
-              constraints: const BoxConstraints(minWidth: 900),
+              constraints: const BoxConstraints(minWidth: 600),
               child: DataTable(
                 columnSpacing: 16,
                 horizontalMargin: 8,

@@ -365,7 +365,7 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
     final isFailed = _currentOrder.shipmentStatus == 'Failed';
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(10),
@@ -378,22 +378,22 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.primary),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text('Ordered: ${_currentOrder.date}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                  Text('Shipped: ${_formatShippedDate(_currentOrder.shippedAt)}',
+                  Text('Ordered: ${_currentOrder.date}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+                  Text(isDelivered ? 'Shipped: ${_currentOrder.date}' : 'Status: ${_currentOrder.shipmentStatus}',
                       style: const TextStyle(fontSize: 10.5, color: AppColors.textSecondary)),
                 ],
               ),
             ],
           ),
 
-          const SizedBox(width: 12),
-          const SizedBox(height: 20, child: VerticalDivider(width: 1, color: AppColors.cardBorder)),
-          const SizedBox(width: 12),
+          const SizedBox(width: 24),
+          const SizedBox(height: 24, child: VerticalDivider(width: 1, color: AppColors.cardBorder)),
+          const SizedBox(width: 24),
 
           // Compact Timeline Steps
           Expanded(
@@ -419,21 +419,11 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, color: color, size: 14),
-        const SizedBox(width: 3),
-        Text(title, style: TextStyle(fontSize: 10.5, fontWeight: isCompleted || isFailed ? FontWeight.bold : FontWeight.normal, color: isCompleted || isFailed ? AppColors.textPrimary : AppColors.textMuted)),
+        Icon(icon, color: color, size: 16),
+        const SizedBox(width: 4),
+        Text(title, style: TextStyle(fontSize: 11.5, fontWeight: isCompleted || isFailed ? FontWeight.bold : FontWeight.normal, color: isCompleted || isFailed ? AppColors.textPrimary : AppColors.textMuted)),
       ],
     );
-  }
-
-  String _formatShippedDate(DateTime? date) {
-    if (date == null) return '—';
-    final localDate = date.toLocal();
-    const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    return '${localDate.day} ${months[localDate.month - 1]} ${localDate.year}';
   }
 
   Widget _compactTimelineLine({required bool isCompleted}) {
