@@ -1,16 +1,21 @@
 
-name: Deploy Flutter Admin Panel
+name: Deploy Sales-Man Admin Panel
 
 on:
   push:
     branches:
-      - main
+      - master
+
   workflow_dispatch:
 
 permissions:
   contents: read
   pages: write
   id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -24,14 +29,20 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - name: Install Dependencies
         run: flutter pub get
 
       - name: Build Flutter Web
-        run: flutter build web --release --base-href "/sales-man-admin/"
+        run: |
+          flutter build web --release \
+            --base-href "/sales-man-admin/"
 
-      - name: Upload Build
+      - name: Setup GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Web Build
         uses: actions/upload-pages-artifact@v4
         with:
           path: build/web
