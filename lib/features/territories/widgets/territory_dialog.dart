@@ -13,7 +13,10 @@ class TerritoryDialog extends StatefulWidget {
   final DistrictModel? district;
   final SubDistrictModel? subDistrict;
   final AreaModel? area;
-  final String? parentId; // districtId for SubDistrict, subDistrictId for Area
+  final String? parentId; // districtCode for SubDistrict, subDistrictCode for Area
+  final List<DivisionModel>? divisions;
+  final String? initialDivisionCode;
+  final List<String>? salesmenNames;
   final Function(dynamic) onSave;
 
   const TerritoryDialog({
@@ -23,6 +26,9 @@ class TerritoryDialog extends StatefulWidget {
     this.subDistrict,
     this.area,
     this.parentId,
+    this.divisions,
+    this.initialDivisionCode,
+    this.salesmenNames,
     required this.onSave,
   });
 
@@ -35,7 +41,24 @@ class _TerritoryDialogState extends State<TerritoryDialog> {
   late final TextEditingController _nameController;
   late final TextEditingController _codeController;
   late final TextEditingController _retailersCountController;
+  late String _selectedDivisionCode;
   String? _assignedSalesman;
+
+  List<DivisionModel> get _availableDivisions {
+    if (widget.divisions != null && widget.divisions!.isNotEmpty) {
+      return widget.divisions!;
+    }
+    return const [
+      DivisionModel(id: '1', name: 'Dhaka', code: '1'),
+      DivisionModel(id: '2', name: 'Chattogram', code: '2'),
+      DivisionModel(id: '3', name: 'Rajshahi', code: '3'),
+      DivisionModel(id: '4', name: 'Khulna', code: '4'),
+      DivisionModel(id: '5', name: 'Barishal', code: '5'),
+      DivisionModel(id: '6', name: 'Sylhet', code: '6'),
+      DivisionModel(id: '7', name: 'Rangpur', code: '7'),
+      DivisionModel(id: '8', name: 'Mymensingh', code: '8'),
+    ];
+  }
 
   @override
   void initState() {
@@ -44,11 +67,23 @@ class _TerritoryDialogState extends State<TerritoryDialog> {
     String initCode = '';
     int initRetailers = 0;
 
+    final divs = _availableDivisions;
+    final defaultDiv = (widget.initialDivisionCode != null &&
+            widget.initialDivisionCode != 'all' &&
+            divs.any((d) => d.code == widget.initialDivisionCode))
+        ? widget.initialDivisionCode!
+        : divs.first.code;
+    _selectedDivisionCode = defaultDiv;
+
     switch (widget.level) {
       case TerritoryLevel.district:
         initName = widget.district?.name ?? '';
         initCode = widget.district?.code ?? '';
         initRetailers = widget.district?.retailersCount ?? 0;
+        if (widget.district != null &&
+            divs.any((d) => d.code == widget.district!.divisionId)) {
+          _selectedDivisionCode = widget.district!.divisionId;
+        }
         break;
       case TerritoryLevel.subDistrict:
         initName = widget.subDistrict?.name ?? '';
@@ -59,7 +94,10 @@ class _TerritoryDialogState extends State<TerritoryDialog> {
         initName = widget.area?.name ?? '';
         initCode = widget.area?.code ?? '';
         initRetailers = widget.area?.retailersCount ?? 0;
-        _assignedSalesman = widget.area?.assignedSalesman;
+        final existing = widget.area?.assignedSalesman;
+        _assignedSalesman = (existing == null || existing == 'Unassigned' || existing.isEmpty)
+            ? null
+            : existing;
         break;
     }
 
@@ -110,6 +148,7 @@ class _TerritoryDialogState extends State<TerritoryDialog> {
       case TerritoryLevel.district:
         final model = DistrictModel(
           id: widget.district?.id ?? 'dist_${DateTime.now().millisecondsSinceEpoch}',
+          divisionId: _selectedDivisionCode,
           name: name,
           code: code,
           retailersCount: count,
@@ -146,10 +185,18 @@ class _TerritoryDialogState extends State<TerritoryDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final salesmen = MockSalesmenData.salesmen.map((s) => s.name).toList();
-    if (!salesmen.contains('Tariqul Islam')) salesmen.insert(0, 'Tariqul Islam');
-    if (!salesmen.contains('Rafiqul Islam')) salesmen.insert(1, 'Rafiqul Islam');
-    if (!salesmen.contains('Kamrul Hasan')) salesmen.insert(2, 'Kamrul Hasan');
+    final List<String> salesmen = [
+      ...(widget.salesmenNames != null && widget.salesmenNames!.isNotEmpty
+          ? widget.salesmenNames!
+          : MockSalesmenData.salesmen.map((s) => s.name)),
+    ];
+    if (_assignedSalesman != null &&
+        _assignedSalesman!.isNotEmpty &&
+        !salesmen.contains(_assignedSalesman)) {
+      salesmen.insert(0, _assignedSalesman!);
+    }
+
+    final divs = _availableDivisions;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -178,6 +225,36 @@ class _TerritoryDialogState extends State<TerritoryDialog> {
                     ],
                   ),
                   const SizedBox(height: 16),
+                  if (widget.level == TerritoryLevel.district) ...[
+                    const Text('Division', style: AppTypography.labelBold),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String>(
+                      initialValue: _selectedDivisionCode,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: const BorderSide(color: AppColors.border),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
+                      items: divs
+                          .map((div) => DropdownMenuItem<String>(
+                                value: div.code,
+                                child: Text('${div.code} - ${div.name}'),
+                              ))
+                          .toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _selectedDivisionCode = val);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                  ],
                   CustomTextField(
                     label: '$_levelTitle Name',
                     hintText: 'e.g. ${widget.level == TerritoryLevel.district ? "Dhaka" : widget.level == TerritoryLevel.subDistrict ? "Mirpur" : "Mirpur-10"}',
@@ -191,12 +268,16 @@ class _TerritoryDialogState extends State<TerritoryDialog> {
                   ),
                   const SizedBox(height: 14),
                   CustomTextField(
-                    label: 'Code / Identifier',
-                    hintText: 'e.g. ${widget.level == TerritoryLevel.district ? "12" : widget.level == TerritoryLevel.subDistrict ? "101" : "1003"}',
+                    label: 'Numeric Code / Identifier',
+                    hintText: 'e.g. ${widget.level == TerritoryLevel.district ? "1" : widget.level == TerritoryLevel.subDistrict ? "101" : "1001"}',
                     controller: _codeController,
+                    keyboardType: TextInputType.number,
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
-                        return 'Please enter code';
+                        return 'Please enter numeric code';
+                      }
+                      if (int.tryParse(val.trim()) == null) {
+                        return 'Code must be a number (e.g. 1, 101, 1001)';
                       }
                       return null;
                     },

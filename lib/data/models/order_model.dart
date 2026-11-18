@@ -21,6 +21,8 @@ class OrderModel {
   final String retailerOwner;
   final String retailerPhone;
   final String retailerAddress;
+  final double? latitude;
+  final double? longitude;
   final String salesmanName;
   final String salesmanPhone;
   final String date;
@@ -39,6 +41,8 @@ class OrderModel {
     required this.retailerOwner,
     required this.retailerPhone,
     required this.retailerAddress,
+    this.latitude,
+    this.longitude,
     required this.salesmanName,
     required this.salesmanPhone,
     required this.date,
@@ -60,6 +64,8 @@ class OrderModel {
     String? retailerOwner,
     String? retailerPhone,
     String? retailerAddress,
+    double? latitude,
+    double? longitude,
     String? salesmanName,
     String? salesmanPhone,
     String? date,
@@ -78,6 +84,8 @@ class OrderModel {
       retailerOwner: retailerOwner ?? this.retailerOwner,
       retailerPhone: retailerPhone ?? this.retailerPhone,
       retailerAddress: retailerAddress ?? this.retailerAddress,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       salesmanName: salesmanName ?? this.salesmanName,
       salesmanPhone: salesmanPhone ?? this.salesmanPhone,
       date: date ?? this.date,

@@ -27,9 +27,8 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
   @override
   void initState() {
     super.initState();
-    // Default demo values as shown in Figma
-    _emailController = TextEditingController(text: 'admin@dhakadealership.com');
-    _passwordController = TextEditingController(text: 'password123');
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
   }
 
   @override
@@ -182,14 +181,17 @@ class _LoginFormPanelState extends State<LoginFormPanel> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Text(
-                      'Keep me signed in',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textPrimary,
+                    const Flexible(
+                      child: Text(
+                        'Keep me signed in',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     TextButton(
                       style: TextButton.styleFrom(
                         padding: EdgeInsets.zero,

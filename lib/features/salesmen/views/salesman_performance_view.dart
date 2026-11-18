@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../core/widgets/app_sidebar.dart';
 import '../../../core/widgets/app_topbar.dart';
+import '../../../features/auth/viewmodels/auth_viewmodel.dart';
 import '../../../routing/app_router.dart';
 import '../viewmodels/salesman_performance_viewmodel.dart';
 
@@ -13,10 +14,13 @@ class SalesmanPerformanceView extends StatelessWidget {
   const SalesmanPerformanceView({super.key});
 
   @override
-  Widget build(BuildContext context) => ChangeNotifierProvider(
-    create: (_) => SalesmanPerformanceViewModel(),
-    child: const _PerformanceContent(),
-  );
+  Widget build(BuildContext context) {
+    final companyId = context.watch<AuthViewModel>().currentUser?.companyId;
+    return ChangeNotifierProvider(
+      create: (_) => SalesmanPerformanceViewModel(companyId: companyId),
+      child: const _PerformanceContent(),
+    );
+  }
 }
 
 class _PerformanceContent extends StatelessWidget {
@@ -77,18 +81,44 @@ class _PerformanceContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const Expanded(
-                child: Text(
-                  'Performance overview',
-                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
-                ),
+              const Text(
+                'Performance overview',
+                style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
               ),
-              OutlinedButton.icon(
-                onPressed: () => _chooseRange(context, vm),
-                icon: const Icon(Icons.date_range),
-                label: Text('${_short(vm.startDate)} – ${_short(vm.endDate)}'),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  for (final preset in const ['Today', '7D', '30D', 'All Time'])
+                    ChoiceChip(
+                      label: Text(preset),
+                      selected: vm.selectedQuickPeriod == preset,
+                      selectedColor: AppColors.primary,
+                      backgroundColor: AppColors.surface,
+                      labelStyle: TextStyle(
+                        fontSize: 12,
+                        fontWeight: vm.selectedQuickPeriod == preset
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                        color: vm.selectedQuickPeriod == preset
+                            ? AppColors.surface
+                            : AppColors.textPrimary,
+                      ),
+                      onSelected: (_) => vm.setQuickPeriod(preset),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: () => _chooseRange(context, vm),
+                    icon: const Icon(Icons.date_range, size: 17),
+                    label: Text('${_short(vm.startDate)} – ${_short(vm.endDate)}'),
+                  ),
+                ],
               ),
             ],
           ),
@@ -153,7 +183,7 @@ class _PerformanceContent extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Target is the configured monthly goal prorated to the selected date range. Visit counts are omitted because visit records are not included in the mock data.',
+            'Target is the configured monthly goal prorated to the selected date range based on live order and payment records.',
             style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
         ],
@@ -300,11 +330,11 @@ Future<void> _chooseRange(
   SalesmanPerformanceViewModel vm,
 ) async {
   final start = vm.startDate ?? DateTime(2026, 11, 1);
-  final end = vm.endDate ?? DateTime(2026, 11, 10);
+  final end = vm.endDate ?? DateTime(2026, 11, 30);
   final range = await showDateRangePicker(
     context: context,
-    firstDate: DateTime(2025),
-    lastDate: DateTime(2027),
+    firstDate: DateTime(2024),
+    lastDate: DateTime(2030),
     initialDateRange: DateTimeRange(start: start, end: end),
   );
   if (range != null) {

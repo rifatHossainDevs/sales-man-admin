@@ -5,7 +5,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:sales_man_admin/core/widgets/tracking_map_view.dart';
 import 'package:sales_man_admin/data/mock/mock_gps_data.dart';
-import 'package:sales_man_admin/data/mock/mock_salesmen_data.dart';
 import 'package:sales_man_admin/data/models/route_history_point.dart';
 import 'package:sales_man_admin/data/models/salesman_gps_location.dart';
 import 'package:sales_man_admin/data/models/salesman_model.dart';
@@ -120,9 +119,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 10));
 
-      expect(find.text('Live Tracking'), findsOneWidget);
+      expect(find.text('Live Tracking'), findsWidgets);
       expect(find.byTooltip('Fit all markers'), findsOneWidget);
-      expect(find.text('Rakib Hasan'), findsOneWidget);
+      expect(find.text('Rakib Hasan'), findsWidgets);
 
       tester.view.physicalSize = const Size(390, 844);
       await tester.pump();
@@ -173,7 +172,7 @@ class _FakeLocationService implements LocationTrackingService {
   _FakeLocationService(this.liveLocations);
 
   @override
-  Stream<List<SalesmanGpsLocation>> watchLiveLocations() =>
+  Stream<List<SalesmanGpsLocation>> watchLiveLocations({String? companyId}) =>
       Stream.value(liveLocations);
 
   @override
@@ -188,5 +187,20 @@ class _FakeLocationService implements LocationTrackingService {
 
 class _FakeSalesmenRepository extends SalesmenRepository {
   @override
-  Future<List<SalesmanModel>> getSalesmen() async => MockSalesmenData.salesmen;
+  Future<List<SalesmanModel>> getSalesmen({String? companyId}) async => const [
+    SalesmanModel(
+      id: 'sm_001',
+      name: 'Rakib Hasan',
+      email: 'rakib@dealer.com',
+      phone: '01711223344',
+      nid: '199226928001',
+      totalOrders: 18,
+      totalCollected: 142000,
+      lastSeen: 'Online now',
+      isOnline: true,
+      status: 'Active',
+      assignedTerritory: 'Mirpur',
+      avatarInitials: 'RH',
+    ),
+  ];
 }

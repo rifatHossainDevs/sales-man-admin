@@ -3,16 +3,16 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../../../data/models/salesman_gps_location.dart';
+import '../../../data/services/api_location_tracking_service.dart';
 import '../../../data/services/location_tracking_service.dart';
-import '../../../data/services/mock_location_tracking_service.dart';
 
 class LiveTrackingViewModel extends ChangeNotifier {
   final LocationTrackingService _service;
   late final StreamSubscription<List<SalesmanGpsLocation>> _subscription;
 
-  LiveTrackingViewModel({LocationTrackingService? service})
-    : _service = service ?? MockLocationTrackingService() {
-    _subscription = _service.watchLiveLocations().listen(
+  LiveTrackingViewModel({LocationTrackingService? service, String? companyId})
+    : _service = service ?? ApiLocationTrackingService() {
+    _subscription = _service.watchLiveLocations(companyId: companyId).listen(
       (locations) {
         _locations = locations;
         _isLoading = false;
@@ -40,6 +40,7 @@ class LiveTrackingViewModel extends ChangeNotifier {
 
   List<SalesmanGpsLocation> _locations = const [];
   String _searchQuery = '';
+  String _statusFilter = 'All';
   String? _selectedSalesmanId;
   String? _errorMessage;
   bool _isLoading = true;
@@ -48,6 +49,7 @@ class LiveTrackingViewModel extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String get searchQuery => _searchQuery;
+  String get statusFilter => _statusFilter;
   String? get selectedSalesmanId => _selectedSalesmanId;
   SalesmanGpsLocation? get selectedSalesman => _locations
       .where((location) => location.salesmanId == _selectedSalesmanId)
@@ -58,19 +60,25 @@ class LiveTrackingViewModel extends ChangeNotifier {
 
   List<SalesmanGpsLocation> get filteredLocations {
     final query = _searchQuery.trim().toLowerCase();
-    if (query.isEmpty) return locations;
     return _locations
-        .where(
-          (location) =>
-              location.name.toLowerCase().contains(query) ||
+        .where((location) {
+          if (_statusFilter == 'Online' && !location.isOnline) return false;
+          if (_statusFilter == 'Offline' && location.isOnline) return false;
+          if (query.isEmpty) return true;
+          return location.name.toLowerCase().contains(query) ||
               location.territory.toLowerCase().contains(query) ||
-              location.placeName.toLowerCase().contains(query),
-        )
+              location.placeName.toLowerCase().contains(query);
+        })
         .toList(growable: false);
   }
 
   void setSearchQuery(String query) {
     _searchQuery = query;
+    notifyListeners();
+  }
+
+  void setStatusFilter(String filter) {
+    _statusFilter = filter;
     notifyListeners();
   }
 

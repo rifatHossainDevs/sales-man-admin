@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import '../../../data/mock/mock_phase5_data.dart';
-import '../../../data/mock/mock_orders_data.dart';
-import '../../../data/mock/mock_salesmen_data.dart';
 import '../../../data/models/order_model.dart';
 import '../../../data/models/salesman_model.dart';
+import '../../../data/repositories/auth_repository.dart';
+import '../../../data/repositories/orders_repository.dart';
+import '../../../data/repositories/salesmen_repository.dart';
 
 class SalesmanPerformanceMetric {
   final SalesmanModel salesman;
@@ -35,33 +36,97 @@ class MonthlyPerformanceMetric {
 }
 
 class SalesmanPerformanceViewModel extends ChangeNotifier {
-  SalesmanPerformanceViewModel() {
+  final OrdersRepository _ordersRepository;
+  final SalesmenRepository _salesmenRepository;
+  final String? companyId;
+
+  static const double defaultMonthlySalesTarget = 250000.0;
+
+  SalesmanPerformanceViewModel({
+    OrdersRepository? ordersRepository,
+    SalesmenRepository? salesmenRepository,
+    this.companyId,
+  })  : _ordersRepository = ordersRepository ?? OrdersRepository(),
+        _salesmenRepository = salesmenRepository ?? SalesmenRepository() {
     load();
   }
+
   bool isLoading = true;
   String? error;
   DateTime? startDate;
   DateTime? endDate;
+  String selectedQuickPeriod = 'All Time';
   List<OrderModel> _orders = [];
   List<SalesmanModel> _salesmen = [];
+
+  double _monthlyTargetFor(String salesmanName) {
+    return MockPhase5Data.monthlySalesTargets[salesmanName] ??
+        defaultMonthlySalesTarget;
+  }
 
   Future<void> load() async {
     isLoading = true;
     error = null;
     notifyListeners();
     try {
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-      _orders = MockOrdersData.getInitialOrders();
-      _salesmen = MockSalesmenData.salesmen
+      final cid = companyId ?? AuthRepository().loadSavedUserSync()?.companyId;
+      final results = await Future.wait([
+        _ordersRepository.getOrders(companyId: cid),
+        _salesmenRepository.getSalesmen(companyId: cid),
+      ]);
+
+      _orders = results[0] as List<OrderModel>;
+      final loadedSalesmen = (results[1] as List<SalesmanModel>)
           .where((s) => s.status != 'Pending')
           .toList();
+
+      // Ensure any salesman present in live orders is also represented in the list
+      final knownNames = loadedSalesmen
+          .map((s) => s.name.trim().toLowerCase())
+          .toSet();
+      for (final order in _orders) {
+        final name = order.salesmanName.trim();
+        if (name.isNotEmpty && !knownNames.contains(name.toLowerCase())) {
+          knownNames.add(name.toLowerCase());
+          final parts = name.split(RegExp(r'\s+'));
+          final initials = parts.length > 1
+              ? '${parts[0][0]}${parts[1][0]}'.toUpperCase()
+              : name.substring(0, name.length.clamp(1, 2)).toUpperCase();
+          loadedSalesmen.add(
+            SalesmanModel(
+              id: 'sm_${name.hashCode}',
+              name: name,
+              email: '',
+              phone: order.salesmanPhone,
+              nid: '',
+              totalOrders: 0,
+              totalCollected: 0,
+              lastSeen: 'Offline',
+              isOnline: false,
+              status: 'Active',
+              appliedDate: '',
+              assignedTerritory: order.retailerAddress,
+              avatarInitials: initials,
+            ),
+          );
+        }
+      }
+
+      _salesmen = loadedSalesmen;
+
       final dates = _orders.map(_orderDate).whereType<DateTime>().toList();
       if (dates.isNotEmpty) {
-        startDate ??= dates.reduce((a, b) => a.isBefore(b) ? a : b);
-        endDate ??= dates.reduce((a, b) => a.isAfter(b) ? a : b);
+        final earliest = dates.reduce((a, b) => a.isBefore(b) ? a : b);
+        final latest = dates.reduce((a, b) => a.isAfter(b) ? a : b);
+        startDate ??= DateTime(earliest.year, earliest.month, 1);
+        endDate ??= DateTime(latest.year, latest.month + 1, 0);
+      } else {
+        final now = DateTime.now();
+        startDate ??= DateTime(now.year, now.month, 1);
+        endDate ??= DateTime(now.year, now.month + 1, 0);
       }
-    } catch (_) {
-      error = 'Could not load performance records.';
+    } catch (e) {
+      error = 'Could not load performance records: $e';
     } finally {
       isLoading = false;
       notifyListeners();
@@ -69,33 +134,43 @@ class SalesmanPerformanceViewModel extends ChangeNotifier {
   }
 
   List<OrderModel> get filteredOrders => _orders.where((order) {
-    final date = _orderDate(order);
-    return date != null &&
-        (startDate == null || !date.isBefore(_day(startDate!))) &&
-        (endDate == null || !date.isAfter(_day(endDate!)));
-  }).toList();
+        final date = _orderDate(order);
+        return date != null &&
+            (startDate == null || !date.isBefore(_day(startDate!))) &&
+            (endDate == null || !date.isAfter(_day(endDate!)));
+      }).toList();
+
   List<SalesmanPerformanceMetric> get metrics {
     return _salesmen.map((salesman) {
+      final sName = salesman.name.trim().toLowerCase();
       final orders = filteredOrders
-          .where((o) => o.salesmanName == salesman.name)
+          .where((o) => o.salesmanName.trim().toLowerCase() == sName)
           .toList();
-      final monthTarget =
-          MockPhase5Data.monthlySalesTargets[salesman.name] ?? 0;
+      final monthTarget = _monthlyTargetFor(salesman.name);
       final target = _targetForPeriod(monthTarget);
       return SalesmanPerformanceMetric(
         salesman: salesman,
         orders: orders.length,
         completedOrders: orders
-            .where((o) => o.shipmentStatus == 'Delivered')
+            .where((o) =>
+                o.shipmentStatus == 'Delivered' || o.paymentStatus == 'Paid')
             .length,
         pendingOrders: orders.where((o) => o.paymentStatus == 'Pending').length,
         sales: orders
             .where((o) => o.paymentStatus != 'Failed')
             .fold(0.0, (a, o) => a + o.totalAmount),
-        collected: orders.fold(0.0, (a, o) => a + o.paidAmount),
+        collected: orders.fold(
+          0.0,
+          (a, o) =>
+              a +
+              (o.paymentStatus == 'Paid' && o.paidAmount == 0
+                  ? o.totalAmount
+                  : o.paidAmount),
+        ),
         target: target,
       );
-    }).toList()..sort((a, b) => b.sales.compareTo(a.sales));
+    }).toList()
+      ..sort((a, b) => b.sales.compareTo(a.sales));
   }
 
   double get totalSales => metrics.fold(0, (s, m) => s + m.sales);
@@ -109,13 +184,18 @@ class SalesmanPerformanceViewModel extends ChangeNotifier {
 
   List<MonthlyPerformanceMetric> get monthlyPerformance {
     final orders = filteredOrders;
-    final months =
-        orders
-            .map((order) => _orderDate(order)!)
-            .map((date) => DateTime(date.year, date.month))
-            .toSet()
-            .toList()
-          ..sort();
+    final months = orders
+        .map((order) => _orderDate(order)!)
+        .map((date) => DateTime(date.year, date.month))
+        .toSet()
+        .toList()
+      ..sort();
+    final teamMonthlyTarget = _salesmen.isEmpty
+        ? defaultMonthlySalesTarget
+        : _salesmen.fold<double>(
+            0,
+            (sum, s) => sum + _monthlyTargetFor(s.name),
+          );
     return months.map((month) {
       final monthOrders = orders.where((order) {
         final date = _orderDate(order)!;
@@ -131,22 +211,48 @@ class SalesmanPerformanceViewModel extends ChangeNotifier {
           : monthEnd;
       final visibleDays = rangeEnd.difference(rangeStart).inDays + 1;
       final dayCount = monthEnd.day;
-      final monthlyTarget = MockPhase5Data.monthlySalesTargets.values
-          .fold<double>(0, (sum, value) => sum + value);
       return MonthlyPerformanceMetric(
         month: '${_monthName(month.month)} ${month.year}',
         sales: monthOrders
             .where((o) => o.paymentStatus != 'Failed')
             .fold(0.0, (sum, o) => sum + o.totalAmount),
-        target: monthlyTarget * visibleDays / dayCount,
+        target: teamMonthlyTarget * visibleDays / dayCount,
         orderCount: monthOrders.length,
       );
     }).toList();
   }
 
   void setDateRange(DateTimeRange range) {
+    selectedQuickPeriod = 'Custom';
     startDate = _day(range.start);
     endDate = _day(range.end);
+    notifyListeners();
+  }
+
+  void setQuickPeriod(String period) {
+    selectedQuickPeriod = period;
+    final now = _day(DateTime.now());
+    if (period == 'Today') {
+      startDate = now;
+      endDate = now;
+    } else if (period == '7D') {
+      startDate = now.subtract(const Duration(days: 6));
+      endDate = now;
+    } else if (period == '30D') {
+      startDate = now.subtract(const Duration(days: 29));
+      endDate = now;
+    } else {
+      final dates = _orders.map(_orderDate).whereType<DateTime>().toList();
+      if (dates.isNotEmpty) {
+        final earliest = dates.reduce((a, b) => a.isBefore(b) ? a : b);
+        final latest = dates.reduce((a, b) => a.isAfter(b) ? a : b);
+        startDate = DateTime(earliest.year, earliest.month, 1);
+        endDate = DateTime(latest.year, latest.month + 1, 0);
+      } else {
+        startDate = DateTime(now.year, now.month, 1);
+        endDate = DateTime(now.year, now.month + 1, 0);
+      }
+    }
     notifyListeners();
   }
 
@@ -155,7 +261,7 @@ class SalesmanPerformanceViewModel extends ChangeNotifier {
       return DateTime.parse(order.date);
     } catch (_) {
       try {
-        final parts = order.date.split(' ');
+        final parts = order.date.trim().split(RegExp(r'\s+'));
         const months = {
           'Jan': 1,
           'Feb': 2,
@@ -201,17 +307,17 @@ class SalesmanPerformanceViewModel extends ChangeNotifier {
   }
 
   String _monthName(int month) => const [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ][month - 1];
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ][month - 1];
 }

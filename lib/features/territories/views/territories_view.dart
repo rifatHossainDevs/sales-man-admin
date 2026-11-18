@@ -39,6 +39,8 @@ class _TerritoriesViewContentState extends State<_TerritoriesViewContent> {
       context: context,
       builder: (ctx) => TerritoryDialog(
         level: TerritoryLevel.district,
+        divisions: viewModel.divisions,
+        initialDivisionCode: viewModel.selectedDivisionCode,
         onSave: (model) async {
           final success = await viewModel.addDistrict(model as DistrictModel);
           if (context.mounted && success) {
@@ -58,6 +60,8 @@ class _TerritoriesViewContentState extends State<_TerritoriesViewContent> {
       builder: (ctx) => TerritoryDialog(
         level: TerritoryLevel.district,
         district: district,
+        divisions: viewModel.divisions,
+        initialDivisionCode: district.divisionId,
         onSave: (model) async {
           final success = await viewModel.updateDistrict(model as DistrictModel);
           if (context.mounted && success) {
@@ -108,8 +112,8 @@ class _TerritoriesViewContentState extends State<_TerritoriesViewContent> {
   // --- Sub-district Dialogs ---
   void _showAddSubDistrict(BuildContext context) {
     final viewModel = context.read<TerritoriesViewModel>();
-    final distId = viewModel.selectedDistrictId;
-    if (distId == null) {
+    final dist = viewModel.selectedDistrict;
+    if (dist == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a district first')),
       );
@@ -120,7 +124,7 @@ class _TerritoriesViewContentState extends State<_TerritoriesViewContent> {
       context: context,
       builder: (ctx) => TerritoryDialog(
         level: TerritoryLevel.subDistrict,
-        parentId: distId,
+        parentId: dist.code,
         onSave: (model) async {
           final success = await viewModel.addSubDistrict(model as SubDistrictModel);
           if (context.mounted && success) {
@@ -190,8 +194,8 @@ class _TerritoriesViewContentState extends State<_TerritoriesViewContent> {
   // --- Area Dialogs ---
   void _showAddArea(BuildContext context) {
     final viewModel = context.read<TerritoriesViewModel>();
-    final subId = viewModel.selectedSubDistrictId;
-    if (subId == null) {
+    final sub = viewModel.selectedSubDistrict;
+    if (sub == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a sub-district first')),
       );
@@ -202,7 +206,8 @@ class _TerritoriesViewContentState extends State<_TerritoriesViewContent> {
       context: context,
       builder: (ctx) => TerritoryDialog(
         level: TerritoryLevel.area,
-        parentId: subId,
+        parentId: sub.code,
+        salesmenNames: viewModel.salesmenNames,
         onSave: (model) async {
           final success = await viewModel.addArea(model as AreaModel);
           if (context.mounted && success) {
@@ -222,6 +227,7 @@ class _TerritoriesViewContentState extends State<_TerritoriesViewContent> {
       builder: (ctx) => TerritoryDialog(
         level: TerritoryLevel.area,
         area: area,
+        salesmenNames: viewModel.salesmenNames,
         onSave: (model) async {
           final success = await viewModel.updateArea(model as AreaModel);
           if (context.mounted && success) {
@@ -275,6 +281,7 @@ class _TerritoriesViewContentState extends State<_TerritoriesViewContent> {
       context: context,
       builder: (ctx) => AssignSalesmanDialog(
         area: area,
+        salesmenNames: viewModel.salesmenNames,
         onAssign: (salesmanName) async {
           final success = await viewModel.assignSalesman(area.id, salesmanName ?? '', null);
           if (context.mounted && success) {
@@ -432,10 +439,10 @@ class _TerritoriesViewContentState extends State<_TerritoriesViewContent> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Column(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Districts',
                       style: TextStyle(
                         fontSize: 16,
@@ -443,12 +450,35 @@ class _TerritoriesViewContentState extends State<_TerritoriesViewContent> {
                         color: AppColors.textPrimary,
                       ),
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Division: Dhaka',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
+                    const SizedBox(height: 2),
+                    PopupMenuButton<String>(
+                      tooltip: 'Filter by Division',
+                      onSelected: (code) => viewModel.selectDivision(code),
+                      itemBuilder: (ctx) => [
+                        const PopupMenuItem(
+                          value: 'all',
+                          child: Text('All Divisions'),
+                        ),
+                        ...viewModel.divisions.map(
+                          (div) => PopupMenuItem(
+                            value: div.code,
+                            child: Text('${div.code}. ${div.name}'),
+                          ),
+                        ),
+                      ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Division: ${viewModel.selectedDivisionName}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Icon(Icons.arrow_drop_down, size: 16, color: AppColors.primary),
+                        ],
                       ),
                     ),
                   ],

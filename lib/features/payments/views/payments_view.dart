@@ -6,6 +6,7 @@ import '../../../core/widgets/app_sidebar.dart';
 import '../../../core/widgets/app_topbar.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../data/models/payment_model.dart';
+import '../../../features/auth/viewmodels/auth_viewmodel.dart';
 import '../../../routing/app_router.dart';
 import '../viewmodels/payments_viewmodel.dart';
 import '../widgets/add_payment_dialog.dart';
@@ -16,8 +17,10 @@ class PaymentsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final companyId = context.watch<AuthViewModel>().currentUser?.companyId;
+
     return ChangeNotifierProvider(
-      create: (_) => PaymentsViewModel(),
+      create: (_) => PaymentsViewModel(companyId: companyId),
       child: const _PaymentsViewContent(),
     );
   }
@@ -82,9 +85,9 @@ class _PaymentsViewContent extends StatelessWidget {
 
     final cards = [
       _metricCard(
-        title: 'Collected · November',
-        value: '৳ ${viewModel.totalCollected.toStringAsFixed(0)}',
-        subtitle: '+8.2% vs October',
+        title: 'Total Order Value · ${viewModel.monthName}',
+        value: '৳ ${viewModel.collectedMonthValue.toStringAsFixed(0)}',
+        subtitle: viewModel.growthTrendText,
         subtitleColor: AppColors.success,
         icon: Icons.account_balance_wallet_outlined,
         iconBg: AppColors.successBg,
@@ -93,25 +96,25 @@ class _PaymentsViewContent extends StatelessWidget {
       _metricCard(
         title: 'Cash Collections',
         value: '৳ ${viewModel.totalCollected.toStringAsFixed(0)}',
-        subtitle: '100% of total (Cash only policy)',
+        subtitle: 'Payment status: Paid',
         subtitleColor: AppColors.primary,
         icon: Icons.payments_outlined,
         iconBg: AppColors.infoBg,
         iconColor: AppColors.primary,
       ),
       _metricCard(
-        title: 'Pending Collections',
+        title: 'Cash Pending',
         value: '৳ ${viewModel.pendingAmount.toStringAsFixed(0)}',
-        subtitle: 'Awaiting deposit',
+        subtitle: 'Payment status: Pending',
         subtitleColor: AppColors.warning,
         icon: Icons.hourglass_empty_rounded,
         iconBg: AppColors.warningBg,
         iconColor: AppColors.warning,
       ),
       _metricCard(
-        title: 'Failed Visits',
-        value: '${viewModel.failedCount}',
-        subtitle: 'Payment not collected',
+        title: 'Failed Payments',
+        value: '৳ ${viewModel.failedAmount.toStringAsFixed(0)}',
+        subtitle: '${viewModel.failedCount} failed order visits',
         subtitleColor: AppColors.danger,
         icon: Icons.cancel_outlined,
         iconBg: AppColors.dangerBg,
@@ -344,6 +347,7 @@ class _PaymentsViewContent extends StatelessWidget {
                         showDialog(
                           context: context,
                           builder: (_) => AddPaymentDialog(
+                            existingPayments: viewModel.allFilteredPayments,
                             onSave: (payment) => viewModel.addPayment(payment),
                           ),
                         );

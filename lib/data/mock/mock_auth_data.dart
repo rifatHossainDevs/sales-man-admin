@@ -8,6 +8,7 @@ class MockAuthData {
     role: 'Admin',
     dealershipName: 'Dhaka Dealership',
     avatarInitials: 'AH',
+    companyId: '6af42ec8c386c8caa6ea66c1',
   );
 
   static const String mockPassword = 'password123';

@@ -1,4 +1,3 @@
-import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -6,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
+import '../../../core/utils/web_platform.dart';
 import '../../../core/widgets/app_sidebar.dart';
 import '../../../core/widgets/app_topbar.dart';
 import '../../../core/widgets/tracking_map_view.dart';
@@ -13,6 +13,7 @@ import '../../../data/mock/mock_salesmen_data.dart';
 import '../../../data/models/salesman_gps_location.dart';
 import '../../../data/models/salesman_model.dart';
 import '../../../data/services/location_tracking_service.dart';
+import '../../../features/auth/viewmodels/auth_viewmodel.dart';
 import '../../../routing/app_router.dart';
 import '../viewmodels/live_tracking_viewmodel.dart';
 import '../viewmodels/route_history_viewmodel.dart';
@@ -28,10 +29,17 @@ class LiveTrackingView extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => ChangeNotifierProvider(
-    create: (_) => LiveTrackingViewModel(service: locationService),
-    child: _LiveTrackingContent(tileLayerOverride: tileLayerOverride),
-  );
+  Widget build(BuildContext context) {
+    final companyId = context.watch<AuthViewModel>().currentUser?.companyId;
+
+    return ChangeNotifierProvider(
+      create: (_) => LiveTrackingViewModel(
+        service: locationService,
+        companyId: companyId,
+      ),
+      child: _LiveTrackingContent(tileLayerOverride: tileLayerOverride),
+    );
+  }
 }
 
 class _LiveTrackingContent extends StatefulWidget {
@@ -135,11 +143,81 @@ class _LiveTrackingContentState extends State<_LiveTrackingContent> {
     spacing: 10,
     runSpacing: 8,
     children: [
-      _countChip('Online now', model.onlineCount, AppColors.success),
-      _countChip('Offline', model.offlineCount, AppColors.textMuted),
-      _countChip('Last sync', '15 sec', AppColors.primary),
+      _filterCountChip(
+        model,
+        filterValue: 'All',
+        label: 'All salesmen',
+        count: model.locations.length,
+        color: AppColors.primary,
+      ),
+      _filterCountChip(
+        model,
+        filterValue: 'Online',
+        label: 'Online now',
+        count: model.onlineCount,
+        color: AppColors.success,
+      ),
+      _filterCountChip(
+        model,
+        filterValue: 'Offline',
+        label: 'Offline',
+        count: model.offlineCount,
+        color: AppColors.textMuted,
+      ),
+      _countChip('Live poll', '10 sec', AppColors.primary),
     ],
   );
+
+  Widget _filterCountChip(
+    LiveTrackingViewModel model, {
+    required String filterValue,
+    required String label,
+    required Object count,
+    required Color color,
+  }) {
+    final isSelected = model.statusFilter == filterValue;
+    return InkWell(
+      borderRadius: BorderRadius.circular(9),
+      onTap: () => model.setStatusFilter(filterValue),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.infoBg : AppColors.surface,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.cardBorder,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '$label  ',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+              ),
+            ),
+            Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? AppColors.primary : AppColors.textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _countChip(String label, Object count, Color color) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
@@ -211,22 +289,29 @@ class _LiveTrackingContentState extends State<_LiveTrackingContent> {
     if (location == null) return const SizedBox.shrink();
     final updated = _relativeTime(location.updatedAt);
 
-    final salesmanModel = MockSalesmenData.salesmen.firstWhere(
-      (s) => s.id == location.salesmanId || s.name == location.name,
-      orElse: () => SalesmanModel(
-        id: location.salesmanId,
-        name: location.name,
-        email: 'salesman@dealer.com',
-        phone: '+8801711223344',
-        nid: '199226928001',
-        totalOrders: 18,
-        totalCollected: 142000,
-        lastSeen: 'Now',
-        isOnline: location.isOnline,
-        status: 'Active',
-        assignedTerritory: location.territory,
-        avatarInitials: location.initials,
-      ),
+    final mockMatch = MockSalesmenData.salesmen
+        .where((s) => s.id == location.salesmanId || s.name == location.name)
+        .firstOrNull;
+    final resolvedPhone = location.phone.isNotEmpty
+        ? location.phone
+        : (mockMatch?.phone ?? '+8801711223344');
+    final resolvedOrders = location.totalOrders > 0
+        ? location.totalOrders
+        : (mockMatch?.totalOrders ?? 0);
+
+    final salesmanModel = SalesmanModel(
+      id: location.salesmanId,
+      name: location.name,
+      email: mockMatch?.email ?? 'salesman@dealer.com',
+      phone: resolvedPhone,
+      nid: mockMatch?.nid ?? '',
+      totalOrders: resolvedOrders,
+      totalCollected: mockMatch?.totalCollected ?? 0,
+      lastSeen: 'Now',
+      isOnline: location.isOnline,
+      status: 'Active',
+      assignedTerritory: location.territory,
+      avatarInitials: location.initials,
     );
 
     return Container(
@@ -299,7 +384,9 @@ class _LiveTrackingContentState extends State<_LiveTrackingContent> {
             ],
           ),
           const SizedBox(height: 16),
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
             children: [
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
@@ -317,7 +404,6 @@ class _LiveTrackingContentState extends State<_LiveTrackingContent> {
                   _openUrl(waUrl);
                 },
               ),
-              const SizedBox(width: 12),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -332,7 +418,10 @@ class _LiveTrackingContentState extends State<_LiveTrackingContent> {
                   try {
                     context.read<RouteHistoryViewModel>().selectSalesman(salesmanModel.id);
                   } catch (_) {}
-                  Navigator.of(context).pushReplacementNamed(AppRouter.routeHistory);
+                  Navigator.of(context).pushReplacementNamed(
+                    AppRouter.routeHistory,
+                    arguments: salesmanModel.id,
+                  );
                 },
               ),
             ],
@@ -343,9 +432,7 @@ class _LiveTrackingContentState extends State<_LiveTrackingContent> {
   }
 
   void _openUrl(String url) {
-    try {
-      web.window.open(url, '_blank');
-    } catch (_) {}
+    WebPlatform.openUrl(url);
   }
 
   Widget _salesmanPanel(

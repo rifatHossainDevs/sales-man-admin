@@ -1,31 +1,34 @@
 import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
-import '../../../data/mock/mock_gps_data.dart';
 import '../../../data/mock/mock_orders_data.dart';
 import '../../../data/mock/mock_payments_data.dart';
 import '../../../data/models/route_history_point.dart';
 import '../../../data/models/salesman_model.dart';
 import '../../../data/repositories/salesmen_repository.dart';
+import '../../../data/services/api_location_tracking_service.dart';
 import '../../../data/services/location_tracking_service.dart';
-import '../../../data/services/mock_location_tracking_service.dart';
 
 class RouteHistoryViewModel extends ChangeNotifier {
   final LocationTrackingService _locationService;
   final SalesmenRepository _salesmenRepository;
+  final String? companyId;
 
   RouteHistoryViewModel({
     LocationTrackingService? locationService,
     SalesmenRepository? salesmenRepository,
-  }) : _locationService = locationService ?? MockLocationTrackingService(),
-       _salesmenRepository = salesmenRepository ?? SalesmenRepository() {
+    this.companyId,
+    String? initialSalesmanId,
+  }) : _locationService = locationService ?? ApiLocationTrackingService(),
+       _salesmenRepository = salesmenRepository ?? SalesmenRepository(),
+       _selectedSalesmanId = initialSalesmanId {
     load();
   }
 
   List<SalesmanModel> _salesmen = const [];
   List<RouteHistoryPoint> _points = const [];
   String? _selectedSalesmanId;
-  DateTime _selectedDate = MockGpsData.sampleRouteDate;
+  DateTime _selectedDate = DateTime.now();
   bool _isLoading = true;
   String? _errorMessage;
   int _requestId = 0;
@@ -61,6 +64,11 @@ class RouteHistoryViewModel extends ChangeNotifier {
 
   // Dynamic Route History Stats for selected salesman and date
   int get totalOrdersOnDate {
+    final locService = _locationService;
+    if (locService is ApiLocationTrackingService &&
+        (locService.lastRouteStatsFromApi || _points.isNotEmpty)) {
+      return locService.lastRouteTotalOrders;
+    }
     final salesman = selectedSalesman;
     if (salesman == null) return 0;
     final orders = MockOrdersData.getInitialOrders();
@@ -72,6 +80,11 @@ class RouteHistoryViewModel extends ChangeNotifier {
   }
 
   double get totalCollectionOnDate {
+    final locService = _locationService;
+    if (locService is ApiLocationTrackingService &&
+        (locService.lastRouteStatsFromApi || _points.isNotEmpty)) {
+      return locService.lastRouteTotalCollection;
+    }
     final salesman = selectedSalesman;
     if (salesman == null) return 0.0;
     final payments = MockPaymentsData.payments;
@@ -83,18 +96,22 @@ class RouteHistoryViewModel extends ChangeNotifier {
   }
 
   bool _matchDate(String dateStr, DateTime targetDate) {
-    // If order/payment date matches selected date month & day, or fallback to matching sample date
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final targetMonth = months[targetDate.month - 1];
-    return dateStr.contains(targetMonth) || dateStr.contains('${targetDate.day}');
+    final paddedDay = targetDate.day.toString().padLeft(2, '0');
+    final formatted = '$paddedDay $targetMonth ${targetDate.year}';
+    final unpadded = '${targetDate.day} $targetMonth ${targetDate.year}';
+    return dateStr.trim() == formatted || dateStr.trim() == unpadded;
   }
 
   Future<void> load() async {
     _isLoading = true;
     notifyListeners();
     try {
-      _salesmen = await _salesmenRepository.getSalesmen();
-      if (_selectedSalesmanId == null && _salesmen.isNotEmpty) {
+      _salesmen = await _salesmenRepository.getSalesmen(companyId: companyId);
+      if ((_selectedSalesmanId == null ||
+              !_salesmen.any((s) => s.id == _selectedSalesmanId)) &&
+          _salesmen.isNotEmpty) {
         _selectedSalesmanId = _salesmen.first.id;
       }
       await _loadRoute();

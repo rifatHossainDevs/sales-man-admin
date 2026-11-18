@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../core/widgets/app_sidebar.dart';
 import '../../../core/widgets/app_topbar.dart';
+import '../../../features/auth/viewmodels/auth_viewmodel.dart';
 import '../../../routing/app_router.dart';
 import '../viewmodels/dashboard_viewmodel.dart';
 import '../widgets/kpi_card_widget.dart';
@@ -18,8 +19,10 @@ class DashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final companyId = context.watch<AuthViewModel>().currentUser?.companyId;
+
     return ChangeNotifierProvider(
-      create: (_) => DashboardViewModel(),
+      create: (_) => DashboardViewModel(companyId: companyId),
       child: const _DashboardViewContent(),
     );
   }
@@ -27,6 +30,23 @@ class DashboardView extends StatelessWidget {
 
 class _DashboardViewContent extends StatelessWidget {
   const _DashboardViewContent();
+
+  String _getTodaySubtitle(BuildContext context) {
+    final user = context.watch<AuthViewModel>().currentUser;
+    final now = DateTime.now();
+    final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    final months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+    final weekday = weekdays[now.weekday - 1];
+    final day = now.day;
+    final month = months[now.month - 1];
+    final year = now.year;
+    final dealership = (user?.dealershipName != null && user!.dealershipName.isNotEmpty)
+        ? user.dealershipName
+        : 'Dhaka Dealership Ltd.';
+
+    return '$weekday, $day $month $year · $dealership';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,9 +65,9 @@ class _DashboardViewContent extends StatelessWidget {
           Expanded(
             child: Column(
               children: [
-                const AppTopbar(
+                AppTopbar(
                   title: 'Dashboard',
-                  subtitle: 'Tuesday, 10 November 2026 · Dhaka Dealership Ltd.',
+                  subtitle: _getTodaySubtitle(context),
                 ),
                 Expanded(
                   child: viewModel.isLoading

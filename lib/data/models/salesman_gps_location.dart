@@ -8,6 +8,8 @@ class SalesmanGpsLocation {
   final String placeName;
   final DateTime updatedAt;
   final bool isOnline;
+  final String phone;
+  final int totalOrders;
 
   const SalesmanGpsLocation({
     required this.salesmanId,
@@ -19,6 +21,8 @@ class SalesmanGpsLocation {
     required this.placeName,
     required this.updatedAt,
     required this.isOnline,
+    this.phone = '',
+    this.totalOrders = 0,
   });
 
   SalesmanGpsLocation copyWith({
@@ -27,6 +31,8 @@ class SalesmanGpsLocation {
     String? placeName,
     DateTime? updatedAt,
     bool? isOnline,
+    String? phone,
+    int? totalOrders,
   }) => SalesmanGpsLocation(
     salesmanId: salesmanId,
     name: name,
@@ -37,5 +43,7 @@ class SalesmanGpsLocation {
     placeName: placeName ?? this.placeName,
     updatedAt: updatedAt ?? this.updatedAt,
     isOnline: isOnline ?? this.isOnline,
+    phone: phone ?? this.phone,
+    totalOrders: totalOrders ?? this.totalOrders,
   );
 }

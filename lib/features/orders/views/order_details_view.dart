@@ -1,5 +1,3 @@
-import 'dart:js_interop';
-import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -8,11 +6,13 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/utils/responsive_layout.dart';
+import '../../../core/utils/web_platform.dart';
 import '../../../core/widgets/app_sidebar.dart';
 import '../../../core/widgets/app_topbar.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../core/widgets/tracking_map_view.dart';
 import '../../../data/models/order_model.dart';
+import '../../../data/repositories/orders_repository.dart';
 import '../../../routing/app_router.dart';
 import '../viewmodels/orders_viewmodel.dart';
 
@@ -50,6 +50,19 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
   void initState() {
     super.initState();
     _currentOrder = widget.order;
+    _refreshOrder();
+  }
+
+  Future<void> _refreshOrder() async {
+    try {
+      final repo = OrdersRepository();
+      final fresh = await repo.getOrderById(widget.order.id);
+      if (fresh != null && mounted) {
+        setState(() {
+          _currentOrder = fresh;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -103,7 +116,7 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
           <div class="invoice-box">
             <div class="header">
               <div>
-                <div class="brand">Dhaka Dealership Ltd.</div>
+                <div class="brand">${order.retailerOwner}</div>
                 <div style="font-size: 12px; color: #64748B; margin-top: 2px;">House 42, Road 11, Banani, Dhaka · +880 1711-000000</div>
               </div>
               <div style="text-align: right;">
@@ -175,26 +188,8 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
         </html>
       ''';
 
-      final iframe = web.document.createElement('iframe') as web.HTMLIFrameElement;
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      web.document.body?.appendChild(iframe);
-
-      final doc = iframe.contentWindow?.document;
-      doc?.open();
-      doc?.write(invoiceHtml.toJS);
-      doc?.close();
-
-      Future.delayed(const Duration(seconds: 2), () {
-        iframe.remove();
-      });
-    } catch (_) {
-      web.window.print();
-    }
+      WebPlatform.printHtmlDocument(invoiceHtml);
+    } catch (_) {}
   }
 
   @override
@@ -237,7 +232,11 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
                                 IconButton(
                                   icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
                                   onPressed: () {
-                                    Navigator.of(context).pushReplacementNamed(AppRouter.orders);
+                                    if (Navigator.of(context).canPop()) {
+                                      Navigator.of(context).pop();
+                                    } else {
+                                      Navigator.of(context).pushReplacementNamed(AppRouter.orders);
+                                    }
                                   },
                                 ),
                                 const SizedBox(width: 8),
@@ -436,9 +435,21 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
     );
   }
 
+  String _computeInitials(String rawName, String fallback) {
+    final trimmed = rawName.trim();
+    if (trimmed.isEmpty) return fallback;
+    final parts = trimmed.split(RegExp(r'\s+'));
+    if (parts.length > 1 && parts[0].isNotEmpty && parts[1].isNotEmpty) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return trimmed.substring(0, trimmed.length.clamp(1, 2)).toUpperCase();
+  }
+
   // Retailer Location Map & Info
   Widget _buildRetailerCardWithMap() {
-    const retailerLoc = LatLng(23.8103, 90.4125);
+    final retailerLoc = (_currentOrder.latitude != null && _currentOrder.longitude != null)
+        ? LatLng(_currentOrder.latitude!, _currentOrder.longitude!)
+        : const LatLng(23.8103, 90.4125);
 
     return Container(
       decoration: BoxDecoration(
@@ -460,7 +471,7 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
                   id: 'retailer-pin',
                   point: retailerLoc,
                   label: _currentOrder.retailerName,
-                  initials: 'RET',
+                  initials: _computeInitials(_currentOrder.retailerOwner, 'RT'),
                   color: AppColors.primary,
                   isSelected: true,
                 ),
@@ -628,6 +639,7 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
   }
 
   Widget _buildSalesmanCard() {
+    final initials = _computeInitials(_currentOrder.salesmanName, 'SR');
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -637,10 +649,10 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
       ),
       child: Row(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 18,
             backgroundColor: AppColors.primary,
-            child: Text('RH', style: TextStyle(color: AppColors.surface, fontWeight: FontWeight.bold, fontSize: 12)),
+            child: Text(initials, style: const TextStyle(color: AppColors.surface, fontWeight: FontWeight.bold, fontSize: 12)),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -658,6 +670,8 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
   }
 
   Widget _buildShipmentControlCard(OrdersViewModel viewModel) {
+    final isPaid = _currentOrder.paymentStatus == 'Paid';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -677,22 +691,57 @@ class _OrderDetailsViewContentState extends State<_OrderDetailsViewContent> {
             ],
           ),
           const SizedBox(height: 14),
+          if (!isPaid && _currentOrder.shipmentStatus != 'Delivered' && _currentOrder.shipmentStatus != 'Failed') ...[
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.warningBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, size: 16, color: AppColors.warning),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Payment is pending. Record full cash payment before marking order as delivered.',
+                      style: TextStyle(fontSize: 11.5, color: AppColors.textPrimary),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           if (_currentOrder.shipmentStatus != 'Delivered' && _currentOrder.shipmentStatus != 'Failed') ...[
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isPaid ? AppColors.primary : AppColors.textMuted,
+                  foregroundColor: AppColors.surface,
+                ),
                 icon: const Icon(Icons.check_circle_outline, size: 18),
                 label: const Text('Mark as Delivered'),
-                onPressed: () async {
-                  await viewModel.updateOrderStatus(
-                    _currentOrder.id,
-                    shipmentStatus: 'Delivered',
-                  );
-                  setState(() {
-                    _currentOrder = _currentOrder.copyWith(shipmentStatus: 'Delivered');
-                  });
-                },
+                onPressed: isPaid
+                    ? () async {
+                        await viewModel.updateOrderStatus(
+                          _currentOrder.id,
+                          shipmentStatus: 'Delivered',
+                        );
+                        setState(() {
+                          _currentOrder = _currentOrder.copyWith(shipmentStatus: 'Delivered');
+                        });
+                      }
+                    : () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Payment must be recorded as Paid before order delivery can be completed.'),
+                            backgroundColor: AppColors.warning,
+                          ),
+                        );
+                      },
               ),
             ),
           ],

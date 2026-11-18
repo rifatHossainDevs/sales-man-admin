@@ -20,7 +20,7 @@ class MockLocationTrackingService implements LocationTrackingService {
     : _salesmenRepository = salesmenRepository ?? SalesmenRepository();
 
   @override
-  Stream<List<SalesmanGpsLocation>> watchLiveLocations() async* {
+  Stream<List<SalesmanGpsLocation>> watchLiveLocations({String? companyId}) async* {
     final salesmen = await _salesmenRepository.getSalesmen();
     if (_disposed) return;
     yield _snapshot(salesmen);

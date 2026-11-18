@@ -1,3 +1,15 @@
+class DivisionModel {
+  final String id;
+  final String name;
+  final String code;
+
+  const DivisionModel({
+    required this.id,
+    required this.name,
+    required this.code,
+  });
+}
+
 class DistrictModel {
   final String id;
   final String divisionId;

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/widgets/status_badge.dart';
+import '../../../core/widgets/tracking_map_view.dart';
 import '../../../data/models/retailer_model.dart';
 
 class RetailerDetailsDialog extends StatelessWidget {
@@ -67,39 +69,50 @@ class RetailerDetailsDialog extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Simulated GPS Map Location Box
-                      Container(
-                        height: 100,
+                      // Live OpenStreetMap GPS Location Box
+                      SizedBox(
+                        height: 155,
                         width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F4F8),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.cardBorder),
-                        ),
                         child: Stack(
-                          alignment: Alignment.center,
                           children: [
-                            const Positioned(
-                              left: 16,
-                              bottom: 12,
-                              child: Row(
-                                children: [
-                                  Icon(Icons.location_on, color: AppColors.primary, size: 20),
-                                  SizedBox(width: 4),
-                                  Text('GPS Mapped: 23.8069, 90.3687', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-                                ],
-                              ),
+                            TrackingMapView(
+                              initialCenter: LatLng(retailer.lat, retailer.lng),
+                              initialZoom: 14.5,
+                              markers: [
+                                TrackingMapMarker(
+                                  id: 'retailer-${retailer.id}',
+                                  point: LatLng(retailer.lat, retailer.lng),
+                                  label: retailer.storeName,
+                                  initials: retailer.storeName.trim().isNotEmpty
+                                      ? retailer.storeName.trim().substring(0, retailer.storeName.trim().length.clamp(1, 2)).toUpperCase()
+                                      : 'ST',
+                                  color: AppColors.primary,
+                                  icon: Icons.storefront_rounded,
+                                  isSelected: true,
+                                ),
+                              ],
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: AppColors.cardBorder),
-                              ),
-                              child: Text(
-                                '${retailer.area}, ${retailer.subDistrict}',
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primary),
+                            Positioned(
+                              left: 12,
+                              top: 12,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface.withValues(alpha: 0.92),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: AppColors.cardBorder),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.location_on, color: AppColors.primary, size: 15),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${retailer.area}, ${retailer.subDistrict} (${retailer.lat.toStringAsFixed(4)}, ${retailer.lng.toStringAsFixed(4)})',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.textPrimary),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],

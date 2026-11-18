@@ -4,8 +4,9 @@ import '../../../data/repositories/salesmen_repository.dart';
 
 class SalesmenViewModel extends ChangeNotifier {
   final SalesmenRepository _repository;
+  final String? companyId;
 
-  SalesmenViewModel({SalesmenRepository? repository})
+  SalesmenViewModel({SalesmenRepository? repository, this.companyId})
       : _repository = repository ?? SalesmenRepository() {
     loadSalesmen();
   }
@@ -31,7 +32,7 @@ class SalesmenViewModel extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _allSalesmen = await _repository.getSalesmen();
+    _allSalesmen = await _repository.getSalesmen(companyId: companyId);
     _isLoading = false;
     notifyListeners();
   }
@@ -85,37 +86,37 @@ class SalesmenViewModel extends ChangeNotifier {
 
   Future<void> toggleStatus(String id) async {
     await _repository.toggleSalesmanStatus(id);
-    _allSalesmen = await _repository.getSalesmen();
+    _allSalesmen = await _repository.getSalesmen(companyId: companyId);
     notifyListeners();
   }
 
   Future<void> approveSalesman(String id) async {
     await _repository.approveSalesman(id);
-    _allSalesmen = await _repository.getSalesmen();
+    _allSalesmen = await _repository.getSalesmen(companyId: companyId);
     notifyListeners();
   }
 
   Future<void> rejectSalesman(String id) async {
     await _repository.rejectSalesman(id);
-    _allSalesmen = await _repository.getSalesmen();
+    _allSalesmen = await _repository.getSalesmen(companyId: companyId);
     notifyListeners();
   }
 
   Future<void> addSalesman(SalesmanModel salesman) async {
-    await _repository.addSalesman(salesman);
-    _allSalesmen = await _repository.getSalesmen();
+    await _repository.addSalesman(salesman, companyId: companyId);
+    _allSalesmen = await _repository.getSalesmen(companyId: companyId);
     notifyListeners();
   }
 
   Future<void> updateSalesman(SalesmanModel salesman) async {
     await _repository.updateSalesman(salesman);
-    _allSalesmen = await _repository.getSalesmen();
+    _allSalesmen = await _repository.getSalesmen(companyId: companyId);
     notifyListeners();
   }
 
   Future<void> deleteSalesman(String id) async {
     await _repository.deleteSalesman(id);
-    _allSalesmen = await _repository.getSalesmen();
+    _allSalesmen = await _repository.getSalesmen(companyId: companyId);
     notifyListeners();
   }
 }

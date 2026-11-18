@@ -7,7 +7,9 @@ class AuthViewModel extends ChangeNotifier {
   final AuthRepository _authRepository;
 
   AuthViewModel({AuthRepository? authRepository})
-      : _authRepository = authRepository ?? AuthRepository();
+      : _authRepository = authRepository ?? AuthRepository() {
+    _currentUser = _authRepository.loadSavedUserSync();
+  }
 
   UserModel? _currentUser;
   bool _isLoading = false;

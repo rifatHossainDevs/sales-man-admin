@@ -1,6 +1,8 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_typography.dart';
+import '../../../core/utils/web_platform.dart';
 import '../../../core/widgets/custom_button.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../data/models/product_model.dart';
@@ -9,7 +11,7 @@ class ProductDialog extends StatefulWidget {
   final ProductModel? product;
   final List<String> categories;
   final List<String> suppliers;
-  final Function(ProductModel) onSave;
+  final void Function(ProductModel product, {Uint8List? imageBytes, String? imageName}) onSave;
 
   const ProductDialog({
     super.key,
@@ -38,8 +40,9 @@ class _ProductDialogState extends State<ProductDialog> {
   late String _selectedSupplier;
   late bool _isActive;
 
-  // Image Uploads (up to 3)
-  final List<String> _uploadedImages = ['Image_1.png'];
+  Uint8List? _selectedImageBytes;
+  String? _selectedImageName;
+  String? _existingImageUrl;
 
   @override
   void initState() {
@@ -51,17 +54,23 @@ class _ProductDialogState extends State<ProductDialog> {
     _descController = TextEditingController(text: p?.description ?? '');
     _priceController = TextEditingController(text: p != null ? p.price.toStringAsFixed(0) : '');
     _offerPriceController = TextEditingController(
-        text: p?.offerPrice != null ? p!.offerPrice!.toStringAsFixed(0) : '');
+      text: p?.offerPrice != null ? p!.offerPrice!.toStringAsFixed(0) : '',
+    );
     _stockController = TextEditingController(text: p != null ? p.stock.toString() : '10');
     _unitController = TextEditingController(text: p?.unit ?? 'pack');
 
     final cleanCats = widget.categories.where((c) => c != 'All categories').toList();
-    _selectedCategory = p?.category ?? (cleanCats.isNotEmpty ? cleanCats.first : 'Rice & Grains');
+    _selectedCategory = (p != null && cleanCats.contains(p.category))
+        ? p.category
+        : (cleanCats.isNotEmpty ? cleanCats.first : 'Rice & Grains');
 
     final cleanSups = widget.suppliers.where((s) => s != 'All suppliers').toList();
-    _selectedSupplier = p?.supplier ?? (cleanSups.isNotEmpty ? cleanSups.first : 'Golden Mills Ltd.');
+    _selectedSupplier = (p != null && cleanSups.contains(p.supplier))
+        ? p.supplier
+        : (cleanSups.isNotEmpty ? cleanSups.first : 'Golden Mills Ltd.');
 
     _isActive = p?.isActive ?? true;
+    _existingImageUrl = p?.imageUrl;
   }
 
   @override
@@ -77,6 +86,17 @@ class _ProductDialogState extends State<ProductDialog> {
     super.dispose();
   }
 
+  void _pickImageFromBrowser() {
+    WebPlatform.pickImageFromBrowser((bytes, fileName) {
+      if (mounted) {
+        setState(() {
+          _selectedImageBytes = bytes;
+          _selectedImageName = fileName;
+        });
+      }
+    });
+  }
+
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -86,7 +106,6 @@ class _ProductDialogState extends State<ProductDialog> {
         : null;
     final stock = int.tryParse(_stockController.text) ?? 0;
 
-    // Validate offer price rule
     if (offerPrice != null && offerPrice >= price) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -110,15 +129,28 @@ class _ProductDialogState extends State<ProductDialog> {
       stock: stock,
       unit: _unitController.text.trim(),
       isActive: _isActive,
+      imageUrl: _existingImageUrl,
     );
 
-    widget.onSave(productModel);
+    widget.onSave(
+      productModel,
+      imageBytes: _selectedImageBytes,
+      imageName: _selectedImageName,
+    );
     Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.product != null;
+    final categoryItems = {
+      ...widget.categories.where((c) => c != 'All categories'),
+      _selectedCategory,
+    }.toList();
+    final supplierItems = {
+      ...widget.suppliers.where((s) => s != 'All suppliers'),
+      _selectedSupplier,
+    }.toList();
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -153,7 +185,6 @@ class _ProductDialogState extends State<ProductDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Product Information Warning Card
                         Container(
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
@@ -182,7 +213,7 @@ class _ProductDialogState extends State<ProductDialog> {
                                     Text(
                                       '• SKU must be unique across all products.\n'
                                       '• Offer price must be lower than the regular price.\n'
-                                      '• The first uploaded image will be used as the cover image.',
+                                      '• Uploaded product image is stored in Cloudinary and synced with the Android Salesman App.',
                                       style: TextStyle(
                                         fontSize: 12,
                                         color: AppColors.textSecondary,
@@ -198,84 +229,64 @@ class _ProductDialogState extends State<ProductDialog> {
                         const SizedBox(height: 20),
 
                         // Image Upload Section
-                        const Text('Product Images (Up to 3)', style: AppTypography.labelBold),
+                        const Text('Product Cover Image', style: AppTypography.labelBold),
                         const SizedBox(height: 8),
                         Wrap(
                           spacing: 12,
                           runSpacing: 12,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            // Uploaded previews
-                            for (int i = 0; i < _uploadedImages.length; i++)
-                              Stack(
-                                children: [
-                                  Container(
-                                    width: 80,
-                                    height: 80,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.background,
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: AppColors.cardBorder),
-                                    ),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(Icons.inventory_2_outlined, color: AppColors.primary, size: 28),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          i == 0 ? 'Cover' : 'Img #${i + 1}',
-                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.textSecondary),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 2,
-                                    right: 2,
-                                    child: InkWell(
-                                      onTap: () {
-                                        setState(() {
-                                          _uploadedImages.removeAt(i);
-                                        });
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.all(2),
-                                        decoration: const BoxDecoration(
-                                          color: AppColors.danger,
-                                          shape: BoxShape.circle,
-                                        ),
-                                        child: const Icon(Icons.close, size: 12, color: Colors.white),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-
-                            // Add image button if < 3
-                            if (_uploadedImages.length < 3)
-                              InkWell(
-                                onTap: () {
-                                  setState(() {
-                                    _uploadedImages.add('Image_${_uploadedImages.length + 1}.png');
-                                  });
-                                },
-                                child: Container(
+                            if (_selectedImageBytes != null)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.memory(
+                                  _selectedImageBytes!,
                                   width: 80,
                                   height: 80,
-                                  decoration: BoxDecoration(
+                                  fit: BoxFit.cover,
+                                ),
+                              )
+                            else if (_existingImageUrl != null && _existingImageUrl!.isNotEmpty)
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  _existingImageUrl!,
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) => Container(
+                                    width: 80,
+                                    height: 80,
                                     color: AppColors.background,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: AppColors.primary, style: BorderStyle.solid),
-                                  ),
-                                  child: const Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.add_a_photo_outlined, color: AppColors.primary, size: 22),
-                                      SizedBox(height: 4),
-                                      Text('Upload', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary)),
-                                    ],
+                                    child: const Icon(Icons.inventory_2_outlined, color: AppColors.primary),
                                   ),
                                 ),
                               ),
+                            InkWell(
+                              onTap: _pickImageFromBrowser,
+                              child: Container(
+                                width: 110,
+                                height: 80,
+                                decoration: BoxDecoration(
+                                  color: AppColors.background,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.primary, style: BorderStyle.solid),
+                                ),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.add_a_photo_outlined, color: AppColors.primary, size: 22),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      _selectedImageName ?? 'Choose Image',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                         const SizedBox(height: 20),
@@ -325,14 +336,11 @@ class _ProductDialogState extends State<ProductDialog> {
                                   const Text('Category *', style: AppTypography.labelBold),
                                   const SizedBox(height: 6),
                                   DropdownButtonFormField<String>(
-                                    initialValue: widget.categories.contains(_selectedCategory)
-                                        ? _selectedCategory
-                                        : widget.categories.firstWhere((c) => c != 'All categories', orElse: () => 'Rice & Grains'),
+                                    initialValue: _selectedCategory,
                                     decoration: const InputDecoration(
                                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                     ),
-                                    items: widget.categories
-                                        .where((c) => c != 'All categories')
+                                    items: categoryItems
                                         .map((c) => DropdownMenuItem(value: c, child: Text(c)))
                                         .toList(),
                                     onChanged: (val) {
@@ -350,14 +358,11 @@ class _ProductDialogState extends State<ProductDialog> {
                                   const Text('Supplier *', style: AppTypography.labelBold),
                                   const SizedBox(height: 6),
                                   DropdownButtonFormField<String>(
-                                    initialValue: widget.suppliers.contains(_selectedSupplier)
-                                        ? _selectedSupplier
-                                        : widget.suppliers.firstWhere((s) => s != 'All suppliers', orElse: () => 'Golden Mills Ltd.'),
+                                    initialValue: _selectedSupplier,
                                     decoration: const InputDecoration(
                                       contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                     ),
-                                    items: widget.suppliers
-                                        .where((s) => s != 'All suppliers')
+                                    items: supplierItems
                                         .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                                         .toList(),
                                     onChanged: (val) {

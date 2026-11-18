@@ -6,6 +6,7 @@ import '../../../core/utils/responsive_layout.dart';
 import '../../../core/widgets/app_sidebar.dart';
 import '../../../core/widgets/app_topbar.dart';
 import '../../../data/models/salesman_model.dart';
+import '../../../features/auth/viewmodels/auth_viewmodel.dart';
 import '../../../routing/app_router.dart';
 import '../viewmodels/salesmen_viewmodel.dart';
 import '../widgets/salesman_details_dialog.dart';
@@ -16,8 +17,10 @@ class SalesmenView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final companyId = context.watch<AuthViewModel>().currentUser?.companyId;
+
     return ChangeNotifierProvider(
-      create: (_) => SalesmenViewModel(),
+      create: (_) => SalesmenViewModel(companyId: companyId),
       child: const _SalesmenViewContent(),
     );
   }

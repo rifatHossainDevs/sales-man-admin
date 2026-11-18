@@ -7,10 +7,12 @@ import '../../../data/models/payment_model.dart';
 
 class AddPaymentDialog extends StatefulWidget {
   final Function(PaymentModel) onSave;
+  final List<PaymentModel> existingPayments;
 
   const AddPaymentDialog({
     super.key,
     required this.onSave,
+    this.existingPayments = const [],
   });
 
   @override
@@ -29,10 +31,25 @@ class _AddPaymentDialogState extends State<AddPaymentDialog> {
   @override
   void initState() {
     super.initState();
-    _invoiceController = TextEditingController(text: 'INV-0043');
-    _salesmanController = TextEditingController(text: 'Rakib Hasan');
-    _retailerController = TextEditingController(text: 'Rahman Store');
-    _amountController = TextEditingController(text: '');
+    final pendingFirst = widget.existingPayments
+        .where((p) => p.status == 'Pending')
+        .firstOrNull ??
+        widget.existingPayments.firstOrNull;
+
+    _invoiceController = TextEditingController(
+      text: pendingFirst?.invoiceNo ?? 'INV-0043',
+    );
+    _salesmanController = TextEditingController(
+      text: pendingFirst?.salesmanName ?? 'Rakib Hasan',
+    );
+    _retailerController = TextEditingController(
+      text: pendingFirst?.retailerName ?? 'Rahman Store',
+    );
+    _amountController = TextEditingController(
+      text: pendingFirst != null && pendingFirst.amount > 0
+          ? pendingFirst.amount.toStringAsFixed(0)
+          : '',
+    );
     _notesController = TextEditingController(text: 'Cash collected on visit');
   }
 

@@ -28,8 +28,9 @@ class TrackingMapMarker {
 
 /// Shared OpenStreetMap canvas used by live tracking, route history, and order details.
 class TrackingMapView extends StatefulWidget {
-  final MapController controller;
+  final MapController? controller;
   final LatLng initialCenter;
+  final double initialZoom;
   final List<TrackingMapMarker> markers;
   final List<LatLng> routePoints;
   final VoidCallback? onTileError;
@@ -38,8 +39,9 @@ class TrackingMapView extends StatefulWidget {
 
   const TrackingMapView({
     super.key,
-    required this.controller,
+    this.controller,
     required this.initialCenter,
+    this.initialZoom = 12,
     this.markers = const [],
     this.routePoints = const [],
     this.onTileError,
@@ -52,14 +54,25 @@ class TrackingMapView extends StatefulWidget {
 }
 
 class _TrackingMapViewState extends State<TrackingMapView> {
+  late final MapController _internalController = MapController();
+  MapController get _mapController => widget.controller ?? _internalController;
   late LatLng _center;
-  double _zoom = 12;
+  late double _zoom;
   bool _tileError = false;
 
   @override
   void initState() {
     super.initState();
     _center = widget.initialCenter;
+    _zoom = widget.initialZoom;
+  }
+
+  @override
+  void dispose() {
+    if (widget.controller == null) {
+      _internalController.dispose();
+    }
+    super.dispose();
   }
 
   @override
@@ -68,7 +81,7 @@ class _TrackingMapViewState extends State<TrackingMapView> {
     if (oldWidget.initialCenter != widget.initialCenter) {
       _center = widget.initialCenter;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) widget.controller.move(_center, _zoom);
+        if (mounted) _mapController.move(_center, _zoom);
       });
     }
   }
@@ -84,10 +97,10 @@ class _TrackingMapViewState extends State<TrackingMapView> {
     if (points.length == 1) {
       _center = points.single;
       _zoom = 15;
-      widget.controller.move(_center, _zoom);
+      _mapController.move(_center, _zoom);
       return;
     }
-    widget.controller.fitCamera(
+    _mapController.fitCamera(
       CameraFit.coordinates(
         coordinates: points,
         padding: const EdgeInsets.all(56),
@@ -110,10 +123,10 @@ class _TrackingMapViewState extends State<TrackingMapView> {
         child: Stack(
           children: [
             FlutterMap(
-              mapController: widget.controller,
+              mapController: _mapController,
               options: MapOptions(
                 initialCenter: widget.initialCenter,
-                initialZoom: 12,
+                initialZoom: widget.initialZoom,
                 minZoom: 3,
                 maxZoom: 19,
                 backgroundColor: const Color(0xFFE8EDF1),
@@ -227,7 +240,7 @@ class _TrackingMapViewState extends State<TrackingMapView> {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
-                  '© OpenStreetMap',
+                  '© OpenStreetMap contributors',
                   style: TextStyle(
                     fontSize: 9.5,
                     color: AppColors.textMuted,
@@ -249,7 +262,7 @@ class _TrackingMapViewState extends State<TrackingMapView> {
                   children: [
                     IconButton(
                       tooltip: 'Zoom in',
-                      onPressed: () => widget.controller.move(
+                      onPressed: () => _mapController.move(
                         _center,
                         (_zoom + 1).clamp(3, 19).toDouble(),
                       ),
@@ -258,7 +271,7 @@ class _TrackingMapViewState extends State<TrackingMapView> {
                     const SizedBox(height: 1, child: Divider(height: 1)),
                     IconButton(
                       tooltip: 'Zoom out',
-                      onPressed: () => widget.controller.move(
+                      onPressed: () => _mapController.move(
                         _center,
                         (_zoom - 1).clamp(3, 19).toDouble(),
                       ),

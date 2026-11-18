@@ -1,23 +1,37 @@
 import 'package:flutter/material.dart';
 import '../../../data/models/retailer_model.dart';
+import '../../../data/models/territory_model.dart';
 import '../../../data/repositories/retailers_repository.dart';
+import '../../../data/repositories/territories_repository.dart';
 
 class RetailersViewModel extends ChangeNotifier {
   final RetailersRepository _repository;
+  final TerritoriesRepository _territoriesRepository;
+  final String? companyId;
 
-  RetailersViewModel({RetailersRepository? repository})
-      : _repository = repository ?? RetailersRepository() {
+  RetailersViewModel({
+    RetailersRepository? repository,
+    TerritoriesRepository? territoriesRepository,
+    this.companyId,
+  })  : _repository = repository ?? RetailersRepository(),
+        _territoriesRepository = territoriesRepository ?? TerritoriesRepository() {
     loadRetailers();
+    loadLocationsFromBackend();
   }
 
   bool _isLoading = true;
   bool get isLoading => _isLoading;
 
   List<RetailerModel> _allRetailers = [];
+  List<DivisionModel> _dbDivisions = [];
+  List<DistrictModel> _dbDistricts = [];
+  List<SubDistrictModel> _dbSubDistricts = [];
+  List<AreaModel> _dbAreas = [];
+
   String _searchQuery = '';
-  String _selectedDivision = 'Dhaka';
-  String _selectedDistrict = 'Dhaka';
-  String _selectedSubDistrict = 'Mirpur';
+  String _selectedDivision = 'All divisions';
+  String _selectedDistrict = 'All districts';
+  String _selectedSubDistrict = 'All sub-districts';
   String _selectedArea = 'All areas';
   bool _isMapView = false;
 
@@ -35,27 +49,70 @@ class RetailersViewModel extends ChangeNotifier {
   int get currentPage => _currentPage;
   int get pageSize => _pageSize;
 
-  final List<String> divisions = ['All divisions', 'Dhaka', 'Chattogram', 'Sylhet'];
-  final List<String> districts = ['All districts', 'Dhaka', 'Gazipur', 'Narayanganj'];
-  final List<String> subDistricts = ['All sub-districts', 'Mirpur', 'Uttara', 'Dhanmondi', 'Gulshan'];
-  final List<String> areas = [
-    'All areas',
-    'Mirpur-1',
-    'Mirpur-2',
-    'Mirpur-6',
-    'Mirpur-10',
-    'Mirpur-11',
-    'Mirpur-12',
-    'Pallabi',
-    'Kafrul',
-    'Shewrapara',
-  ];
+  Future<void> loadLocationsFromBackend() async {
+    try {
+      final divs = await _territoriesRepository.getDivisions();
+      final dists = await _territoriesRepository.getDistricts();
+      final subDists = await _territoriesRepository.getSubDistricts(null);
+      final ars = await _territoriesRepository.getAreas(null);
+
+      _dbDivisions = divs;
+      _dbDistricts = dists;
+      _dbSubDistricts = subDists;
+      _dbAreas = ars;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  // Dynamic Relational Cascading Dropdown Getters
+  List<String> get divisions {
+    final fromDb = _dbDivisions.map((d) => d.name).where((n) => n.isNotEmpty);
+    final fromStores = _allRetailers.map((r) => r.division).where((d) => d.isNotEmpty);
+    final set = {...fromDb, ...fromStores}.toList()..sort();
+    return ['All divisions', ...set];
+  }
+
+  List<String> get districts {
+    if (_selectedDivision != 'All divisions') {
+      final divObj = _dbDivisions.where((d) => d.name == _selectedDivision).firstOrNull;
+      if (divObj != null) {
+        final filteredDists = _dbDistricts.where((d) => d.divisionId == divObj.code).map((d) => d.name).toList()..sort();
+        return ['All districts', ...filteredDists];
+      }
+    }
+    final set = _dbDistricts.map((d) => d.name).where((n) => n.isNotEmpty).toSet().toList()..sort();
+    return ['All districts', ...set];
+  }
+
+  List<String> get subDistricts {
+    if (_selectedDistrict != 'All districts') {
+      final distObj = _dbDistricts.where((d) => d.name == _selectedDistrict).firstOrNull;
+      if (distObj != null) {
+        final filteredSubDists = _dbSubDistricts.where((sd) => sd.districtId == distObj.code).map((sd) => sd.name).toList()..sort();
+        return ['All sub-districts', ...filteredSubDists];
+      }
+    }
+    final set = _dbSubDistricts.map((sd) => sd.name).where((n) => n.isNotEmpty).toSet().toList()..sort();
+    return ['All sub-districts', ...set];
+  }
+
+  List<String> get areas {
+    if (_selectedSubDistrict != 'All sub-districts') {
+      final subDistObj = _dbSubDistricts.where((sd) => sd.name == _selectedSubDistrict).firstOrNull;
+      if (subDistObj != null) {
+        final filteredAreas = _dbAreas.where((a) => a.subDistrictId == subDistObj.code).map((a) => a.name).toList()..sort();
+        return ['All areas', ...filteredAreas];
+      }
+    }
+    final set = _dbAreas.map((a) => a.name).where((n) => n.isNotEmpty).toSet().toList()..sort();
+    return ['All areas', ...set];
+  }
 
   Future<void> loadRetailers() async {
     _isLoading = true;
     notifyListeners();
 
-    _allRetailers = await _repository.getRetailers();
+    _allRetailers = await _repository.getRetailers(companyId: companyId);
     _isLoading = false;
     notifyListeners();
   }
@@ -121,18 +178,24 @@ class RetailersViewModel extends ChangeNotifier {
 
   void setSelectedDivision(String div) {
     _selectedDivision = div;
+    _selectedDistrict = 'All districts';
+    _selectedSubDistrict = 'All sub-districts';
+    _selectedArea = 'All areas';
     _currentPage = 1;
     notifyListeners();
   }
 
   void setSelectedDistrict(String dist) {
     _selectedDistrict = dist;
+    _selectedSubDistrict = 'All sub-districts';
+    _selectedArea = 'All areas';
     _currentPage = 1;
     notifyListeners();
   }
 
   void setSelectedSubDistrict(String subDist) {
     _selectedSubDistrict = subDist;
+    _selectedArea = 'All areas';
     _currentPage = 1;
     notifyListeners();
   }
@@ -149,20 +212,20 @@ class RetailersViewModel extends ChangeNotifier {
   }
 
   Future<void> addRetailer(RetailerModel retailer) async {
-    await _repository.addRetailer(retailer);
-    _allRetailers = await _repository.getRetailers();
+    await _repository.addRetailer(retailer, companyId: companyId);
+    _allRetailers = await _repository.getRetailers(companyId: companyId);
     notifyListeners();
   }
 
   Future<void> updateRetailer(RetailerModel retailer) async {
     await _repository.updateRetailer(retailer);
-    _allRetailers = await _repository.getRetailers();
+    _allRetailers = await _repository.getRetailers(companyId: companyId);
     notifyListeners();
   }
 
   Future<void> deleteRetailer(String id) async {
     await _repository.deleteRetailer(id);
-    _allRetailers = await _repository.getRetailers();
+    _allRetailers = await _repository.getRetailers(companyId: companyId);
     notifyListeners();
   }
 }

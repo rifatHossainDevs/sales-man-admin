@@ -6,6 +6,7 @@ import '../../../core/widgets/app_sidebar.dart';
 import '../../../core/widgets/app_topbar.dart';
 import '../../../core/widgets/status_badge.dart';
 import '../../../data/models/order_model.dart';
+import '../../../features/auth/viewmodels/auth_viewmodel.dart';
 import '../../../routing/app_router.dart';
 import '../viewmodels/orders_viewmodel.dart';
 import 'order_details_view.dart';
@@ -15,8 +16,10 @@ class OrdersView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final companyId = context.watch<AuthViewModel>().currentUser?.companyId;
+
     return ChangeNotifierProvider(
-      create: (_) => OrdersViewModel(),
+      create: (_) => OrdersViewModel(companyId: companyId),
       child: const _OrdersViewContent(),
     );
   }
@@ -253,7 +256,33 @@ class _OrdersViewContent extends StatelessWidget {
                 return DataRow(
                   cells: [
                     DataCell(
-                      Text(o.invoiceNo, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.primary)),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 26,
+                            height: 26,
+                            decoration: BoxDecoration(
+                              color: AppColors.infoBg,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(
+                              Icons.receipt_long_rounded,
+                              size: 15,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            o.invoiceNo,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
                       onTap: () => _openDetails(context, o),
                     ),
                     DataCell(Text(o.retailerName, style: const TextStyle(fontSize: 13))),
@@ -350,11 +379,15 @@ class _OrdersViewContent extends StatelessWidget {
     );
   }
 
-  void _openDetails(BuildContext context, OrderModel order) {
-    Navigator.of(context).push(
+  Future<void> _openDetails(BuildContext context, OrderModel order) async {
+    final viewModel = context.read<OrdersViewModel>();
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => OrderDetailsView(order: order),
       ),
     );
+    if (context.mounted) {
+      await viewModel.loadOrders();
+    }
   }
 }

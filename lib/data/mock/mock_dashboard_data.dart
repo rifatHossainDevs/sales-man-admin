@@ -4,9 +4,6 @@ import '../models/low_stock_model.dart';
 import 'mock_orders_data.dart';
 
 class MockDashboardData {
-  static int _ordersFor(String name) => MockOrdersData.getInitialOrders()
-      .where((order) => order.salesmanName == name)
-      .length;
 
   static List<SalesBarChartData> getSalesChartData(SalesChartPeriod period) {
     final orders = MockOrdersData.getInitialOrders();
@@ -89,40 +86,7 @@ class MockDashboardData {
   }
 
   static List<SalesmanDutyModel> getSalesmenOnDuty() {
-    return [
-      SalesmanDutyModel(
-        id: 'sm_01',
-        name: 'Rakib Hasan',
-        initials: 'RH',
-        location: 'Mirpur-10 · 12 s ago',
-        ordersCount: _ordersFor('Rakib Hasan'),
-        isOnline: true,
-      ),
-      SalesmanDutyModel(
-        id: 'sm_02',
-        name: 'Sohel Rana',
-        initials: 'SR',
-        location: 'Pallabi · 1 min ago',
-        ordersCount: _ordersFor('Sohel Rana'),
-        isOnline: true,
-      ),
-      SalesmanDutyModel(
-        id: 'sm_03',
-        name: 'Nusrat Jahan',
-        initials: 'NJ',
-        location: 'Kafrul · 3 min ago',
-        ordersCount: _ordersFor('Nusrat Jahan'),
-        isOnline: true,
-      ),
-      SalesmanDutyModel(
-        id: 'sm_04',
-        name: 'Imran Hossain',
-        initials: 'IH',
-        location: 'Mirpur-11 · idle 12 min',
-        ordersCount: _ordersFor('Imran Hossain'),
-        isOnline: false,
-      ),
-    ];
+    return const [];
   }
 
   static List<LowStockModel> getLowStockAlerts() {

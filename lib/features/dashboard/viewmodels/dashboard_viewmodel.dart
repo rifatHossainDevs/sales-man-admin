@@ -5,12 +5,12 @@ import '../../../data/models/salesman_duty_model.dart';
 import '../../../data/models/recent_order_model.dart';
 import '../../../data/models/low_stock_model.dart';
 import '../../../data/repositories/dashboard_repository.dart';
-import '../../../data/mock/mock_salesmen_data.dart';
 
 class DashboardViewModel extends ChangeNotifier {
   final DashboardRepository _repository;
+  final String? companyId;
 
-  DashboardViewModel({DashboardRepository? repository})
+  DashboardViewModel({DashboardRepository? repository, this.companyId})
     : _repository = repository ?? DashboardRepository() {
     loadDashboardData();
   }
@@ -38,8 +38,7 @@ class DashboardViewModel extends ChangeNotifier {
 
   int get onlineSalesmenCount =>
       _salesmenOnDuty.where((s) => s.isOnline).length;
-  int get totalSalesmenCount =>
-      MockSalesmenData.salesmen.where((s) => s.status == 'Active').length;
+  int get totalSalesmenCount => _salesmenOnDuty.length;
 
   Future<void> loadDashboardData() async {
     _isLoading = true;
@@ -50,7 +49,7 @@ class DashboardViewModel extends ChangeNotifier {
       final results = await Future.wait([
         _repository.fetchKpiSummaries(),
         _repository.fetchSalesChartData(_selectedPeriod),
-        _repository.fetchSalesmenOnDuty(),
+        _repository.fetchSalesmenOnDuty(companyId: companyId),
         _repository.fetchRecentOrders(),
         _repository.fetchLowStockAlerts(),
       ]);

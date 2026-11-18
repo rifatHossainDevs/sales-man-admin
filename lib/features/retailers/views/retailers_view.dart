@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../core/widgets/app_sidebar.dart';
 import '../../../core/widgets/app_topbar.dart';
+import '../../../core/widgets/tracking_map_view.dart';
 import '../../../data/models/retailer_model.dart';
+import '../../../features/auth/viewmodels/auth_viewmodel.dart';
 import '../../../routing/app_router.dart';
 import '../viewmodels/retailers_viewmodel.dart';
 import '../widgets/retailer_details_dialog.dart';
@@ -15,8 +18,10 @@ class RetailersView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final companyId = context.watch<AuthViewModel>().currentUser?.companyId;
+
     return ChangeNotifierProvider(
-      create: (_) => RetailersViewModel(),
+      create: (_) => RetailersViewModel(companyId: companyId),
       child: const _RetailersViewContent(),
     );
   }
@@ -428,38 +433,47 @@ class _RetailersViewContent extends StatelessWidget {
 
   Widget _buildMapView(BuildContext context, RetailersViewModel viewModel) {
     final retailers = viewModel.allFilteredRetailers;
+    final first = retailers.firstOrNull;
+    final center = first != null
+        ? LatLng(first.lat, first.lng)
+        : const LatLng(23.8103, 90.4125);
 
-    return Container(
-      height: 540,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0F4F8),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.cardBorder),
-      ),
-      child: Stack(
-        children: [
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.map_outlined, size: 48, color: AppColors.primary.withValues(alpha: 0.4)),
-                const SizedBox(height: 8),
-                Text(
-                  'Retailers Map View · ${retailers.length} stores located',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.textSecondary),
-                ),
-                const SizedBox(height: 4),
-                const Text('Dhaka Metropolitan Area', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
-              ],
-            ),
+    final markers = retailers.map((r) {
+      final rawName = r.storeName.trim();
+      final initials = rawName.isNotEmpty
+          ? rawName.substring(0, rawName.length.clamp(1, 2)).toUpperCase()
+          : 'ST';
+      return TrackingMapMarker(
+        id: 'store-${r.id}',
+        point: LatLng(r.lat, r.lng),
+        label: '${r.storeName} · ${r.area}',
+        initials: initials,
+        color: r.dueAmount > 0 ? AppColors.danger : AppColors.primary,
+        icon: Icons.storefront_rounded,
+        onTap: () => _openDetails(context, viewModel, r),
+      );
+    }).toList(growable: false);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 520,
+          width: double.infinity,
+          child: TrackingMapView(
+            initialCenter: center,
+            initialZoom: 12.5,
+            markers: markers,
+            semanticsLabel: 'OpenStreetMap showing registered retail stores',
           ),
+        ),
+        if (retailers.isNotEmpty) ...[
+          const SizedBox(height: 16),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: retailers.map((r) {
               return Container(
-                margin: const EdgeInsets.all(12),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
@@ -479,8 +493,10 @@ class _RetailersViewContent extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(r.storeName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          Text('${r.area} · Due: ৳${r.dueAmount.toStringAsFixed(0)}',
-                              style: TextStyle(fontSize: 10, color: r.dueAmount > 0 ? AppColors.danger : AppColors.textSecondary)),
+                          Text(
+                            '${r.area} · ${r.lat.toStringAsFixed(4)}, ${r.lng.toStringAsFixed(4)} · Due: ৳${r.dueAmount.toStringAsFixed(0)}',
+                            style: TextStyle(fontSize: 10, color: r.dueAmount > 0 ? AppColors.danger : AppColors.textSecondary),
+                          ),
                         ],
                       ),
                     ],
@@ -490,7 +506,7 @@ class _RetailersViewContent extends StatelessWidget {
             }).toList(),
           ),
         ],
-      ),
+      ],
     );
   }
 

@@ -1,16 +1,25 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../../../data/models/category_supplier_model.dart';
 import '../../../data/models/product_model.dart';
+import '../../../data/repositories/categories_suppliers_repository.dart';
 import '../../../data/repositories/products_repository.dart';
 
 class ProductsViewModel extends ChangeNotifier {
   final ProductsRepository _repository;
+  final CategoriesSuppliersRepository _catSupRepository;
 
-  ProductsViewModel({ProductsRepository? repository})
-      : _repository = repository ?? ProductsRepository() {
+  ProductsViewModel({
+    ProductsRepository? repository,
+    CategoriesSuppliersRepository? catSupRepository,
+  })  : _repository = repository ?? ProductsRepository(),
+        _catSupRepository = catSupRepository ?? CategoriesSuppliersRepository() {
     loadProducts();
   }
 
   List<ProductModel> _products = [];
+  List<CategoryModel> _allCategories = [];
+  List<SupplierModel> _allSuppliers = [];
   bool _isLoading = false;
   String _searchQuery = '';
   String _selectedCategory = 'All categories';
@@ -35,14 +44,20 @@ class ProductsViewModel extends ChangeNotifier {
   int get outOfStockProducts => _products.where((p) => p.stock == 0).length;
 
   List<String> get categories {
-    final list = _products.map((p) => p.category).toSet().toList();
-    list.sort();
+    final set = <String>{
+      ..._allCategories.map((c) => c.name).where((n) => n.isNotEmpty),
+      ..._products.map((p) => p.category).where((n) => n.isNotEmpty),
+    };
+    final list = set.toList()..sort();
     return ['All categories', ...list];
   }
 
   List<String> get suppliers {
-    final list = _products.map((p) => p.supplier).toSet().toList();
-    list.sort();
+    final set = <String>{
+      ..._allSuppliers.map((s) => s.name).where((n) => n.isNotEmpty),
+      ..._products.map((p) => p.supplier).where((n) => n.isNotEmpty),
+    };
+    final list = set.toList()..sort();
     return ['All suppliers', ...list];
   }
 
@@ -70,9 +85,19 @@ class ProductsViewModel extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _products = await _repository.getProducts();
-    _isLoading = false;
-    notifyListeners();
+    try {
+      final results = await Future.wait([
+        _repository.getProducts(),
+        _catSupRepository.getCategories(),
+        _catSupRepository.getSuppliers(),
+      ]);
+      _products = results[0] as List<ProductModel>;
+      _allCategories = results[1] as List<CategoryModel>;
+      _allSuppliers = results[2] as List<SupplierModel>;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   void setSearchQuery(String query) {
@@ -95,18 +120,24 @@ class ProductsViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addProduct(ProductModel product) async {
-    await _repository.addProduct(product);
+  Future<void> addProduct(
+    ProductModel product, {
+    Uint8List? imageBytes,
+    String? imageName,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+    await _repository.addProduct(
+      product,
+      imageBytes: imageBytes,
+      imageName: imageName,
+    );
     await loadProducts();
   }
 
   Future<void> updateProduct(ProductModel product) async {
     await _repository.updateProduct(product);
-    final index = _products.indexWhere((p) => p.id == product.id);
-    if (index != -1) {
-      _products[index] = product;
-    }
-    notifyListeners();
+    await loadProducts();
   }
 
   Future<void> deleteProduct(String id) async {
@@ -121,8 +152,8 @@ class ProductsViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final updated = product.copyWith(isActive: !product.isActive);
-      await _repository.updateProduct(updated);
+      final newActive = await _repository.toggleProductStatus(product);
+      final updated = product.copyWith(isActive: newActive);
 
       final index = _products.indexWhere((p) => p.id == product.id);
       if (index != -1) {

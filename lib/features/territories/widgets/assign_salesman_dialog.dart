@@ -7,11 +7,13 @@ import '../../../data/models/territory_model.dart';
 
 class AssignSalesmanDialog extends StatefulWidget {
   final AreaModel area;
+  final List<String>? salesmenNames;
   final Function(String? salesmanName) onAssign;
 
   const AssignSalesmanDialog({
     super.key,
     required this.area,
+    this.salesmenNames,
     required this.onAssign,
   });
 
@@ -25,15 +27,24 @@ class _AssignSalesmanDialogState extends State<AssignSalesmanDialog> {
   @override
   void initState() {
     super.initState();
-    _selectedSalesman = widget.area.assignedSalesman;
+    final existing = widget.area.assignedSalesman;
+    _selectedSalesman = (existing == null || existing == 'Unassigned' || existing.isEmpty)
+        ? null
+        : existing;
   }
 
   @override
   Widget build(BuildContext context) {
-    final salesmen = MockSalesmenData.salesmen.map((s) => s.name).toList();
-    if (!salesmen.contains('Tariqul Islam')) salesmen.insert(0, 'Tariqul Islam');
-    if (!salesmen.contains('Rafiqul Islam')) salesmen.insert(1, 'Rafiqul Islam');
-    if (!salesmen.contains('Kamrul Hasan')) salesmen.insert(2, 'Kamrul Hasan');
+    final List<String> salesmen = [
+      ...(widget.salesmenNames != null && widget.salesmenNames!.isNotEmpty
+          ? widget.salesmenNames!
+          : MockSalesmenData.salesmen.map((s) => s.name)),
+    ];
+    if (_selectedSalesman != null &&
+        _selectedSalesman!.isNotEmpty &&
+        !salesmen.contains(_selectedSalesman)) {
+      salesmen.insert(0, _selectedSalesman!);
+    }
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

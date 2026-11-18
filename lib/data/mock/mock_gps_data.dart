@@ -19,9 +19,7 @@ class MockGpsPosition {
 class MockGpsData {
   MockGpsData._();
 
-  static final DateTime sampleRouteDate = DateTime.now().subtract(
-    const Duration(days: 1),
-  );
+  static final DateTime sampleRouteDate = DateTime.now();
 
   static const Map<String, MockGpsPosition> livePositions = {
     'sm_001': MockGpsPosition(

@@ -10,6 +10,7 @@ import '../../../core/widgets/app_topbar.dart';
 import '../../../core/widgets/tracking_map_view.dart';
 import '../../../data/models/route_history_point.dart';
 import '../../../data/services/location_tracking_service.dart';
+import '../../../features/auth/viewmodels/auth_viewmodel.dart';
 import '../../../routing/app_router.dart';
 import '../viewmodels/route_history_viewmodel.dart';
 
@@ -24,10 +25,20 @@ class RouteHistoryView extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => ChangeNotifierProvider(
-    create: (_) => RouteHistoryViewModel(locationService: locationService),
-    child: _RouteHistoryContent(tileLayerOverride: tileLayerOverride),
-  );
+  Widget build(BuildContext context) {
+    final companyId = context.watch<AuthViewModel>().currentUser?.companyId;
+    final initialSalesmanId =
+        ModalRoute.of(context)?.settings.arguments as String?;
+
+    return ChangeNotifierProvider(
+      create: (_) => RouteHistoryViewModel(
+        locationService: locationService,
+        companyId: companyId,
+        initialSalesmanId: initialSalesmanId,
+      ),
+      child: _RouteHistoryContent(tileLayerOverride: tileLayerOverride),
+    );
+  }
 }
 
 class _RouteHistoryContent extends StatefulWidget {
@@ -384,11 +395,15 @@ class _RouteHistoryContentState extends State<_RouteHistoryContent> {
     int index,
     bool first,
     bool last,
-  ) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+  ) => InkWell(
+    onTap: () {
+      _mapController.move(LatLng(point.latitude, point.longitude), 15);
+    },
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
         SizedBox(
           width: 22,
           child: Column(
@@ -462,6 +477,7 @@ class _RouteHistoryContentState extends State<_RouteHistoryContent> {
           ),
         ),
       ],
+    ),
     ),
   );
 

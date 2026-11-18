@@ -159,8 +159,12 @@ class _ProductsViewContent extends StatelessWidget {
               builder: (_) => ProductDialog(
                 categories: viewModel.categories,
                 suppliers: viewModel.suppliers,
-                onSave: (newProduct) {
-                  viewModel.addProduct(newProduct);
+                onSave: (newProduct, {imageBytes, imageName}) {
+                  viewModel.addProduct(
+                    newProduct,
+                    imageBytes: imageBytes,
+                    imageName: imageName,
+                  );
                 },
               ),
             );
@@ -270,7 +274,18 @@ class _ProductsViewContent extends StatelessWidget {
                               color: AppColors.infoBg,
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Icon(Icons.inventory_2_outlined, size: 16, color: AppColors.primary),
+                            clipBehavior: Clip.antiAlias,
+                            child: (p.imageUrl != null && p.imageUrl!.isNotEmpty)
+                                ? Image.network(
+                                    p.imageUrl!.replaceFirst('http://', 'https://'),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, _, _) => const Icon(
+                                      Icons.inventory_2_outlined,
+                                      size: 16,
+                                      color: AppColors.primary,
+                                    ),
+                                  )
+                                : const Icon(Icons.inventory_2_outlined, size: 16, color: AppColors.primary),
                           ),
                           const SizedBox(width: 10),
                           Column(
@@ -341,7 +356,7 @@ class _ProductsViewContent extends StatelessWidget {
                                   product: p,
                                   categories: viewModel.categories,
                                   suppliers: viewModel.suppliers,
-                                  onSave: (updated) {
+                                  onSave: (updated, {imageBytes, imageName}) {
                                     viewModel.updateProduct(updated);
                                   },
                                 ),

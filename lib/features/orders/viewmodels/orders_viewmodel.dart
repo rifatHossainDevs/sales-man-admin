@@ -1,12 +1,13 @@
-import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
+import '../../../core/utils/web_platform.dart';
 import '../../../data/models/order_model.dart';
 import '../../../data/repositories/orders_repository.dart';
 
 class OrdersViewModel extends ChangeNotifier {
   final OrdersRepository _repository;
+  final String? companyId;
 
-  OrdersViewModel({OrdersRepository? repository})
+  OrdersViewModel({OrdersRepository? repository, this.companyId})
       : _repository = repository ?? OrdersRepository() {
     loadOrders();
   }
@@ -82,14 +83,17 @@ class OrdersViewModel extends ChangeNotifier {
   bool _matchOrderDate(String dateStr, DateTime targetDate) {
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final targetMonth = months[targetDate.month - 1];
-    return dateStr.contains(targetMonth) || dateStr.contains('${targetDate.day}');
+    final paddedDay = targetDate.day.toString().padLeft(2, '0');
+    final formatted = '$paddedDay $targetMonth ${targetDate.year}';
+    final unpadded = '${targetDate.day} $targetMonth ${targetDate.year}';
+    return dateStr.trim() == formatted || dateStr.trim() == unpadded;
   }
 
   Future<void> loadOrders() async {
     _isLoading = true;
     notifyListeners();
 
-    _orders = await _repository.getOrders();
+    _orders = await _repository.getOrders(companyId: companyId);
     _isLoading = false;
     notifyListeners();
   }
@@ -137,11 +141,9 @@ class OrdersViewModel extends ChangeNotifier {
       csv.writeln('"${o.invoiceNo}","${o.retailerName}","${o.salesmanName}","${o.date}",${o.totalAmount},${o.paidAmount},${o.dueAmount},"${o.paymentStatus}","${o.shipmentStatus}"');
     }
 
-    try {
-      final bytes = Uri.encodeComponent(csv.toString());
-      final url = 'data:text/csv;charset=utf-8,$bytes';
-      web.window.open(url, '_blank');
-    } catch (_) {}
+    final bytes = Uri.encodeComponent(csv.toString());
+    final url = 'data:text/csv;charset=utf-8,$bytes';
+    WebPlatform.openUrl(url);
   }
 
   Future<void> updateOrderStatus(
